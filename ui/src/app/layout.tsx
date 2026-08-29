@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Omnistack",
-  description: "Next.js + Rust + Gleam + Python, Cloudflare or AWS",
+  title: "Alpaca Options Agent",
+  description: "Autonomous options-trading agent on Alpaca paper trading",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
