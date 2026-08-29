@@ -1,56 +1,14 @@
 # Deploy - both flavors
 
-This project deploys the same repo to **Cloudflare and AWS**. Local dev uses
-`standalone` SSR (default build); Cloudflare CI sets `BUILD_TARGET=export`.
+This project deploys the same repo to **Cloudflare and AWS**. AWS hosts the
+real backend (Postgres, `db`, `api`, `realtime`, `ai`); Cloudflare hosts only
+the static UI export. No auth anywhere (single-user hackathon demo) - the UI
+talks directly, cross-origin, to the AWS API origin.
 
 CI/CD: `.github/workflows/cd.yml` deploys both on push to main -
 `deploy-cloudflare` (secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)
-and `deploy-aws` (secrets: `SSH_HOST`, `SSH_USER`, `SSH_KEY`).
-
----
-
-# Cloudflare
-
-Prereqs: `bun`, a Cloudflare account, and a reachable backend for `API_ORIGIN`
-(your Rust API + Postgres + Redis, e.g. on the AWS host behind
-`https://api.YOUR-IP.sslip.io`, or `localhost` during `wrangler dev`).
-
-## 1. Create the KV namespace
-
-    cd gateway
-    npx wrangler kv namespace create SESSIONS
-
-Paste the returned `id` and `preview_id` into `gateway/wrangler.toml`.
-
-## 2. Build the web static export
-
-    BUILD_TARGET=export npm run build --workspace ui    # outputs ui/out
-
-## 3. Run locally
-
-    cd gateway
-    cp .dev.vars.example .dev.vars    # set API_ORIGIN
-    npx wrangler dev
-
-Open the printed URL, hit /dashboard, click "dev login".
-
-## 4. Deploy
-
-    npx wrangler deploy
-
-Prod secrets live in the Cloudflare dashboard (Workers > gateway > Settings > Variables):
-`API_ORIGIN`, `BACKEND_SECRET`, `SESSION_TTL` - plus `GOOGLE_CLIENT_ID` and
-`GOOGLE_CLIENT_SECRET` for Google OAuth, with the callback URL
-`https://<worker>.<subdomain>.workers.dev/api/auth/google/callback` registered in
-Google Cloud. KV binding comes from wrangler.toml.
-
-## Notes
-
-- Web is a static export on Cloudflare (auth + proxy live in the worker). SSR stays in dev / AWS.
-- SSE flows: browser -> worker `/api/events` -> `API_ORIGIN`/api/events. WebSocket in production: connect clients directly
-  to the backend, or add an SSE-only contract (workers can't open outbound WS from a fetch handler).
-- Cache: set `CACHE_BACKEND=kv` on the API with `CF_ACCOUNT_ID` + `CF_KV_NAMESPACE` + `CF_API_TOKEN`
-  (create a second namespace for API cache) when you don't want Redis for it.
+and `deploy-aws` (secrets: `SSH_HOST`, `SSH_USER`, `SSH_KEY`). Deploy AWS
+first; Cloudflare's build needs the AWS API's URL.
 
 ---
 
@@ -61,10 +19,10 @@ automatically via Let's Encrypt for `*.YOUR-IP.sslip.io` - zero cert management.
 
 ## 1. EC2
 
-- Terraform: `cd infra && terraform init && terraform apply` (EC2, SG for
-  22/80/443, EIP, Docker preinstalled). Or launch manually (t3.medium is
-  plenty for dev/staging): security group open 22/80/443, Elastic IP for a
-  stable `DOMAIN`.
+    cd infra && terraform init && terraform apply
+
+Provisions EC2 (t3.small/medium), a security group (22/80/443), an Elastic
+IP, Docker preinstalled via `user_data`. Note the output `public_ip`.
 
 ## 2. On the box
 
@@ -72,12 +30,15 @@ automatically via Let's Encrypt for `*.YOUR-IP.sslip.io` - zero cert management.
 
 ## 3. Configure + launch
 
-    cp .env.example .env              # set DOMAIN, POSTGRES_PASSWORD, BACKEND_SECRET, GOOGLE_*
+    cp .env.example .env
+    # set DOMAIN=<public_ip>.sslip.io, POSTGRES_PASSWORD, BACKEND_SECRET
+    # set ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER_TRADE=true
+    # set CF_ACCOUNT_ID, CF_API_TOKEN (Workers AI - the trading brain's LLM calls, not this Cloudflare deploy)
     docker compose -f compose.prod.yaml up -d --build
 
 ## 4. Verify
 
-    curl https://YOUR-PUBLIC-IP.sslip.io          # web
+    curl https://YOUR-PUBLIC-IP.sslip.io          # web (unused once Cloudflare UI is live; still serves standalone SSR)
     curl https://api.YOUR-PUBLIC-IP.sslip.io/health
 
 Caddy auto-redirects http -> https and renews certs itself.
@@ -88,12 +49,36 @@ Caddy auto-redirects http -> https and renews certs itself.
   = multiple boxes + a load balancer; that's when realtime needs the Redis
   pub/sub broker instead of its in-memory fanout (see realtime/src/broker.gleam).
 - VPC subnets/peering, RDS instead of container Postgres, ECR: account-level
-  choices, add them when the workloads justify it - the API talks to anything
-  that speaks Postgres/Redis.
+  choices, add them when the workloads justify it.
 
-## Google OAuth (AWS)
+---
 
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-(https://api.${DOMAIN}/api/auth/google/callback) and `APP_URL` in `.env`.
-Dev login stays available for local work. On Cloudflare the same keys live in
-the worker's secrets instead.
+# Cloudflare (static UI export only)
+
+Prereqs: `bun`, a Cloudflare account, and the AWS API's public URL from above.
+
+## 1. Build the web static export
+
+    NEXT_PUBLIC_API_URL=https://api.YOUR-PUBLIC-IP.sslip.io BUILD_TARGET=export npm run build --workspace ui
+    # outputs ui/out, baked with the AWS API origin
+
+## 2. Run locally
+
+    cd gateway
+    npx wrangler dev
+
+## 3. Deploy
+
+    npx wrangler deploy
+
+## Notes
+
+- The worker has no `/api/*` proxy and no auth - Workers can't relay an
+  outbound WebSocket upgrade through a plain fetch handler (what the
+  GraphQL subscription needs), and there's no session to protect anyway.
+  The UI calls `NEXT_PUBLIC_API_URL` directly, cross-origin; the AWS `api`
+  service's CORS + websocket accept options already allow this (see
+  `api/cmd/api/main.go`).
+- Alpaca/Workers-AI credentials never enter this deploy - they live only in
+  the AWS `ai` container's environment (see Phase 8d in the plan / the
+  write-up's secrets-boundary note).

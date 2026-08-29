@@ -7,11 +7,3 @@ api.{$DOMAIN} {
 	encode gzip
 	reverse_proxy api:8000
 }
-
-realtime.{$DOMAIN} {
-	reverse_proxy realtime:8001
-}
-
-ai.{$DOMAIN} {
-	reverse_proxy ai:8002
-}

@@ -2,8 +2,11 @@ name = "gateway"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
 
-# paste the id from `npx wrangler kv namespace create SESSIONS`
-kv_namespaces = [{ binding = "SESSIONS", id = "REPLACE_WITH_KV_ID", preview_id = "REPLACE_WITH_PREVIEW_ID" }]
-
-# static assets = the Next.js static export; API/SSE paths hit the worker first
-assets = { directory = "../ui/out", run_worker_first = ["/api/*"] }
+# Static assets = the Next.js static export. No auth, no /api/* proxy: the
+# UI talks directly (cross-origin) to the AWS-hosted api service via
+# NEXT_PUBLIC_API_URL baked in at build time - see DEPLOY.md. Workers can't
+# relay an outbound WebSocket upgrade through a plain fetch handler, which
+# is what the GraphQL subscription needs, so there's nothing for this
+# worker to proxy; it only serves static files, and its script below is a
+# fallback for unmatched routes.
+assets = { directory = "../ui/out" }

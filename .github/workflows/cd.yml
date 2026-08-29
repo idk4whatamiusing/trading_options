@@ -13,6 +13,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: BUILD_TARGET=export bun run build:ui
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.API_ORIGIN }}
       - run: npm install --no-audit --no-fund
         working-directory: gateway
       - name: Deploy gateway worker
