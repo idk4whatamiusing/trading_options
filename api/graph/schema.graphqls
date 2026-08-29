@@ -1,70 +1,82 @@
 # Meridian GraphQL schema - the ONLY browser-facing surface (raw fetch + graphql-ws).
-# Auth rides the `session` HttpOnly cookie on POST, and connection_params.session
-# on the graphql-transport-ws handshake.
+# No auth: single-user hackathon demo, read-mostly dashboard over the
+# trading agent's persisted decisions/trades/risk-gate log/account state.
 
-type User {
+type Leg {
+  side: String!
+  right: String!
+  strike: Float!
+  expiry: String!
+  symbol: String!
+  ratioQty: Int!
+}
+
+type Decision {
   id: ID!
-  email: String!
+  ticker: String!
+  runDate: String!
+  direction: String!
+  confidence: Float!
+  summary: String!
+  fullReport: String!
+  createdAt: String!
 }
 
-type Source {
+type Trade {
   id: ID!
-  title: String
-  text: String!
-  score: Float!
+  decisionId: String
+  ticker: String!
+  strategy: String!
+  legs: [Leg!]!
+  expiry: String!
+  quantity: Int!
+  creditDebit: String!
+  netPremium: Float!
+  maxProfit: Float!
+  maxLoss: Float!
+  status: String!
+  alpacaOrderId: String
+  realizedPnl: Float
+  rationale: String
+  openedAt: String
+  closedAt: String
+  createdAt: String!
 }
 
-type ChatChunk {
-  delta: String!
-  done: Boolean!
-  sources: [Source!]!
-  cached: Boolean!
-}
-
-type ChatReply {
-  reply: String!
-  model: String!
-  sources: [Source!]!
-  cached: Boolean!
-}
-
-type ChatSession {
+type RiskGateEvent {
   id: ID!
-  title: String!
-  pinned: Boolean!
-  updatedAt: String!
+  tradeId: String
+  gateName: String!
+  passed: Boolean!
+  reason: String!
+  createdAt: String!
 }
 
-type Message {
-  role: String!
-  content: String!
+type AccountSnapshot {
+  id: ID!
+  equity: Float!
+  cash: Float!
+  buyingPower: Float!
+  optionsBuyingPower: Float
+  dayPnl: Float
+  openPositionsCount: Int!
   createdAt: String!
 }
 
 type Query {
-  me: User
-  users(limit: Int = 50): [User!]!          # gRPC -> db (Rust), cached in Redis 7d
   health: String!
-  chatSessions: [ChatSession!]!             # sidebar list (per user)
-  chatHistory(sessionId: ID!): [Message!]!  # Redis fast path, Postgres primary
+  decisions(limit: Int = 50): [Decision!]!
+  trades(status: String, limit: Int = 50): [Trade!]!
+  riskGateEvents(limit: Int = 100): [RiskGateEvent!]!
+  latestSnapshot: AccountSnapshot
+  accountSnapshots(limit: Int = 100): [AccountSnapshot!]!
 }
 
 type Mutation {
-  login(email: String!): User!              # dev login, sets session cookie
-  logout: Boolean!
-  broadcast(message: String!): Boolean!     # local hub + gRPC Realtime.Broadcast
-  createChatSession(title: String): ChatSession!
-  renameSession(id: ID!, title: String!): Boolean!
-  deleteSession(id: ID!): Boolean!
-  # general chat -> ai (Cloudflare Workers AI | Bedrock | OpenAI), RAG + semantic cache
-  chat(sessionId: ID!, message: String!, provider: String): ChatReply!
-  # knowledge-base-only support answer (local TinyLlama Q4)
-  supportQuery(message: String!): ChatReply!
-  ingestSupport(documents: [String!]!): Int!
+  broadcast(message: String!): Boolean!   # local hub + gRPC Realtime.Broadcast
+  runCycle(tickers: [String!]): String!   # -> Ai.RunCycle, returns cycle status
 }
 
 type Subscription {
   events: String!
-  chatStream(sessionId: ID!, message: String!, provider: String): ChatChunk!
-  supportStream(message: String!): ChatChunk!
 }

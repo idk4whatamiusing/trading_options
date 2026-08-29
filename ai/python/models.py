@@ -52,3 +52,16 @@ class GateOutcome:
 class GateResult:
     passed: bool
     outcomes: list[GateOutcome] = field(default_factory=list)
+
+
+@dataclass
+class CycleResult:
+    cycle_id: str
+    started_at: str
+    finished_at: str = ""
+    tickers_evaluated: int = 0
+    trades_proposed: int = 0
+    trades_placed: int = 0
+    trades_blocked: int = 0
+    errors: list[str] = field(default_factory=list)
+    status: str = "running"  # running | ok | error | idle

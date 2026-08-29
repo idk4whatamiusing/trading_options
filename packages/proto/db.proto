@@ -4,98 +4,181 @@ package meridian.db.v1;
 
 option go_package = "github.com/idk4whatamiusing/meridian_stack/api/pb/dbpb";
 
-// Db is the private Postgres gatekeeper. Only the Go api talks to it.
+// Db is the private Postgres gatekeeper. Callers (Go api, Python ai) must
+// carry x-backend-secret.
 service Db {
-  rpc UpsertUser(UpsertUserRequest) returns (UpsertUserReply);
-  rpc ListUsers(ListUsersRequest) returns (ListUsersReply);
+  rpc CreateDecision(CreateDecisionRequest) returns (CreateDecisionReply);
+  rpc ListDecisions(ListDecisionsRequest) returns (ListDecisionsReply);
 
-  // chat sessions + history (Postgres is primary; Redis in api is the 7d cache)
-  rpc CreateChatSession(CreateChatSessionRequest) returns (CreateChatSessionReply);
-  rpc ListChatSessions(ListChatSessionsRequest) returns (ListChatSessionsReply);
-  rpc RenameChatSession(RenameChatSessionRequest) returns (RenameChatSessionReply);
-  rpc DeleteChatSession(DeleteChatSessionRequest) returns (DeleteChatSessionReply);
-  rpc AppendChatMessage(AppendChatMessageRequest) returns (AppendChatMessageReply);
-  rpc ListChatMessages(ListChatMessagesRequest) returns (ListChatMessagesReply);
+  rpc CreateTrade(CreateTradeRequest) returns (CreateTradeReply);
+  rpc UpdateTradeStatus(UpdateTradeStatusRequest) returns (UpdateTradeStatusReply);
+  rpc ListTrades(ListTradesRequest) returns (ListTradesReply);
+
+  rpc LogRiskGateEvent(LogRiskGateEventRequest) returns (LogRiskGateEventReply);
+  rpc ListRiskGateEvents(ListRiskGateEventsRequest) returns (ListRiskGateEventsReply);
+
+  rpc RecordAccountSnapshot(RecordAccountSnapshotRequest) returns (RecordAccountSnapshotReply);
+  rpc GetLatestAccountSnapshot(GetLatestAccountSnapshotRequest) returns (AccountSnapshot);
+  rpc ListAccountSnapshots(ListAccountSnapshotsRequest) returns (ListAccountSnapshotsReply);
 }
 
-message UpsertUserRequest {
+// ---- decisions ----
+
+message Decision {
   string id = 1;
-  string email = 2;
-}
-message UpsertUserReply {
-  bool ok = 1;
+  string ticker = 2;
+  string run_date = 3;      // YYYY-MM-DD
+  string direction = 4;     // BUY | SELL | HOLD
+  float confidence = 5;
+  string summary = 6;
+  string full_report = 7;
+  string created_at = 8;
 }
 
-message ListUsersRequest {
+message CreateDecisionRequest {
+  string ticker = 1;
+  string run_date = 2;
+  string direction = 3;
+  float confidence = 4;
+  string summary = 5;
+  string full_report = 6;
+}
+message CreateDecisionReply {
+  string id = 1;
+}
+
+message ListDecisionsRequest {
   int32 limit = 1;
 }
-message User {
-  string id = 1;
-  string email = 2;
-}
-message ListUsersReply {
-  repeated User users = 1;
+message ListDecisionsReply {
+  repeated Decision decisions = 1;
 }
 
-message CreateChatSessionRequest {
-  string id = 1;
-  string user_id = 2;
-  string title = 3;
+// ---- trades ----
+
+message Leg {
+  string side = 1;   // buy | sell
+  string right = 2;  // call | put
+  double strike = 3;
+  string expiry = 4; // YYYY-MM-DD
+  string symbol = 5; // OCC option symbol
+  int32 ratio_qty = 6;
 }
-message CreateChatSessionReply {
+
+message Trade {
+  string id = 1;
+  string decision_id = 2;
+  string ticker = 3;
+  string strategy = 4;
+  repeated Leg legs = 5;
+  string expiry = 6;
+  int32 quantity = 7;
+  string credit_debit = 8;   // credit | debit
+  double net_premium = 9;
+  double max_profit = 10;
+  double max_loss = 11;
+  string status = 12;       // proposed | open | closed | rejected | failed
+  string alpaca_order_id = 13;
+  double realized_pnl = 14;
+  string rationale = 15;
+  string opened_at = 16;
+  string closed_at = 17;
+  string created_at = 18;
+}
+
+message CreateTradeRequest {
+  string decision_id = 1;
+  string ticker = 2;
+  string strategy = 3;
+  repeated Leg legs = 4;
+  string expiry = 5;
+  int32 quantity = 6;
+  string credit_debit = 7;
+  double net_premium = 8;
+  double max_profit = 9;
+  double max_loss = 10;
+  string rationale = 11;
+}
+message CreateTradeReply {
+  string id = 1;
+}
+
+message UpdateTradeStatusRequest {
+  string id = 1;
+  string status = 2;
+  string alpaca_order_id = 3;
+  double realized_pnl = 4;
+}
+message UpdateTradeStatusReply {
   bool ok = 1;
 }
 
-message ChatSession {
+message ListTradesRequest {
+  string status = 1; // "" = all
+  int32 limit = 2;
+}
+message ListTradesReply {
+  repeated Trade trades = 1;
+}
+
+// ---- risk gate events ----
+
+message RiskGateEvent {
   string id = 1;
-  string title = 2;
-  bool pinned = 3;
-  string updated_at = 4;
-}
-message ListChatSessionsRequest {
-  string user_id = 1;
-}
-message ListChatSessionsReply {
-  repeated ChatSession sessions = 1;
+  string trade_id = 2;
+  string gate_name = 3;
+  bool passed = 4;
+  string reason = 5;
+  string created_at = 6;
 }
 
-message RenameChatSessionRequest {
+message LogRiskGateEventRequest {
+  string trade_id = 1;
+  string gate_name = 2;
+  bool passed = 3;
+  string reason = 4;
+}
+message LogRiskGateEventReply {
   string id = 1;
-  string user_id = 2;
-  string title = 3;
-}
-message RenameChatSessionReply {
-  bool ok = 1;
 }
 
-message DeleteChatSessionRequest {
+message ListRiskGateEventsRequest {
+  int32 limit = 1;
+}
+message ListRiskGateEventsReply {
+  repeated RiskGateEvent events = 1;
+}
+
+// ---- account snapshots ----
+
+message AccountSnapshot {
   string id = 1;
-  string user_id = 2;
-}
-message DeleteChatSessionReply {
-  bool ok = 1;
-}
-
-message ChatMessage {
-  string role = 1; // user | assistant
-  string content = 2;
-  string created_at = 3;
-}
-message AppendChatMessageRequest {
-  string session_id = 1;
-  string user_id = 2;
-  string role = 3;
-  string content = 4;
-}
-message AppendChatMessageReply {
-  bool ok = 1;
+  double equity = 2;
+  double cash = 3;
+  double buying_power = 4;
+  double options_buying_power = 5;
+  double day_pnl = 6;
+  int32 open_positions_count = 7;
+  string created_at = 8;
 }
 
-message ListChatMessagesRequest {
-  string session_id = 1;
-  string user_id = 2;
-  int32 limit = 3; // 0 = all
+message RecordAccountSnapshotRequest {
+  double equity = 1;
+  double cash = 2;
+  double buying_power = 3;
+  double options_buying_power = 4;
+  double day_pnl = 5;
+  int32 open_positions_count = 6;
 }
-message ListChatMessagesReply {
-  repeated ChatMessage messages = 1;
+message RecordAccountSnapshotReply {
+  string id = 1;
+}
+
+message GetLatestAccountSnapshotRequest {}
+
+message ListAccountSnapshotsRequest {
+  int32 limit = 1;
+}
+message ListAccountSnapshotsReply {
+  repeated AccountSnapshot snapshots = 1;
 }

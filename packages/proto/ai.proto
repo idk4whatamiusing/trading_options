@@ -4,74 +4,33 @@ package meridian.ai.v1;
 
 option go_package = "github.com/idk4whatamiusing/meridian_stack/api/pb/aipb";
 
-// Ai owns ALL AI work: RAG (Python), LLM providers - Cloudflare Workers AI /
-// Bedrock (Go), and the local knowledge-base-only support LLM.
+// Ai is a thin orchestration/status control plane over the Python trading
+// brain (ai/python) - it does not touch persistence (that's Python writing
+// directly to Db, see ai/python/persistence.py) and does not itself run any
+// trading logic.
 service Ai {
-  // general chat: provider-aware, RAG-augmented
-  rpc Chat(ChatRequest) returns (ChatReply);
-  rpc ChatStream(ChatRequest) returns (stream ChatChunk);
-
-  // support: knowledge-base-only, local TinyLlama Q4 via llama.cpp
-  rpc SupportQuery(SupportQueryRequest) returns (stream SupportChunk);
-  rpc Ingest(IngestRequest) returns (IngestReply);
-
-  // baseline classifier (kept from the original template)
-  rpc Predict(PredictRequest) returns (PredictReply);
+  rpc RunCycle(RunCycleRequest) returns (RunCycleReply);
+  rpc GetLastCycleResult(GetLastCycleResultRequest) returns (CycleResult);
 }
 
-message ChatRequest {
-  string message = 1;
-  string system = 2;
-  bool use_rag = 3;
-  string user_id = 4;   // per-user semantic cache isolation
-  string session_id = 5;
-  string provider = 6;  // cloudflare | bedrock | openai ("" = AI_PROVIDER default)
+message RunCycleRequest {
+  repeated string tickers = 1; // empty = configured watchlist
+}
+message RunCycleReply {
+  string cycle_id = 1;
+  string status = 2;
 }
 
-message Source {
-  string id = 1;
-  string title = 2;
-  string text = 3;
-  float score = 4;
-}
+message GetLastCycleResultRequest {}
 
-message ChatReply {
-  string reply = 1;
-  string model = 2;
-  repeated Source sources = 3;
-  bool cached = 4;
-}
-
-message ChatChunk {
-  string delta = 1;
-  bool done = 2;
-  repeated Source sources = 3; // set on first chunk (RAG runs before streaming)
-  bool cached = 4;
-}
-
-message SupportQueryRequest {
-  string message = 1;
-  string user_id = 2;
-}
-
-message SupportChunk {
-  string delta = 1;
-  bool done = 2;
-  repeated Source sources = 3;
-  bool cached = 4;
-}
-
-message IngestRequest {
-  repeated string documents = 1;      // raw text documents to chunk+embed
-  string collection = 2;              // "support" | "chat"
-}
-message IngestReply {
-  int32 chunks = 1;
-}
-
-message PredictRequest {
-  string text = 1;
-}
-message PredictReply {
-  string label = 1;
+message CycleResult {
+  string cycle_id = 1;
+  string started_at = 2;
+  string finished_at = 3;
+  int32 tickers_evaluated = 4;
+  int32 trades_proposed = 5;
+  int32 trades_placed = 6;
+  int32 trades_blocked = 7;
+  repeated string errors = 8;
+  string status = 9; // running | ok | error | idle
 }

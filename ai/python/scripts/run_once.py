@@ -8,9 +8,9 @@ Pipeline: TradingAgents signal -> (if not HOLD) Claude options structuring
 
 Note: day/rolling-5d P&L circuit breakers and open-position limits are
 stubbed at "no open positions, 0% P&L" here, since there is no persistence
-yet (that arrives in Phase 2's cycle.py, backed by the `trades` and
-`account_snapshots` tables). Every other gate runs for real against live
-account/market data.
+dependency in this standalone script (Phase 2's cycle.py wires them for
+real from the `trades` and `account_snapshots` tables). Every other gate
+runs for real against live account/market data.
 """
 
 from __future__ import annotations
@@ -27,62 +27,8 @@ import risk_gates  # noqa: E402
 import tradingagents_client  # noqa: E402
 from alpaca_mcp_client import AlpacaMcpClient  # noqa: E402
 from executor import place  # noqa: E402
+from market_data import account_state, leg_market_data  # noqa: E402
 from options_strategy import propose_trade  # noqa: E402
-
-
-def _num(x, default=0.0) -> float:
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return default
-
-
-async def _account_state(mcp: AlpacaMcpClient) -> dict:
-    resp = await mcp.call_tool("get_account_info", {})
-    info = resp.get("data", {}) if isinstance(resp, dict) else {}
-    if not info:
-        raise RuntimeError(f"get_account_info returned unexpected shape: {resp!r}")
-    return {
-        "equity": _num(info.get("equity")),
-        "options_buying_power": _num(info.get("options_buying_power") or info.get("buying_power")),
-        "total_buying_power": _num(info.get("buying_power")),
-    }
-
-
-async def _leg_market_data(mcp: AlpacaMcpClient, proposal) -> list[dict]:
-    # bid/ask come from get_option_snapshot (batched, one call for all legs);
-    # open_interest only exists on get_option_contracts, queried per-leg since
-    # it filters by underlying/expiry/type/strike-range, not an exact symbol.
-    symbols = ",".join(leg.symbol for leg in proposal.legs)
-    snap_resp = await mcp.call_tool("get_option_snapshot", {"symbols": symbols})
-    snapshots = snap_resp.get("data", {}).get("snapshots", {})
-
-    out = []
-    for leg in proposal.legs:
-        quote = snapshots.get(leg.symbol, {}).get("latestQuote", {})
-
-        contracts_resp = await mcp.call_tool(
-            "get_option_contracts",
-            {
-                "underlying_symbols": proposal.ticker,
-                "expiration_date": leg.expiry,
-                "type": leg.right,
-                "strike_price_gte": str(leg.strike),
-                "strike_price_lte": str(leg.strike),
-                "limit": 1,
-            },
-        )
-        contracts = contracts_resp.get("data", {}).get("option_contracts", [])
-        open_interest = _num(contracts[0]["open_interest"]) if contracts else None
-
-        out.append(
-            {
-                "open_interest": open_interest,
-                "bid": _num(quote.get("bp")),
-                "ask": _num(quote.get("ap")),
-            }
-        )
-    return out
 
 
 async def run(ticker: str, run_date: str, dry_run: bool) -> None:
@@ -96,10 +42,10 @@ async def run(ticker: str, run_date: str, dry_run: bool) -> None:
         print("HOLD signal - no trade attempted (per pipeline: only BUY/SELL signals go to structuring).")
         return
 
-    print("=== Claude options structuring ===")
+    print("=== Options structuring ===")
     proposal = await propose_trade(signal)
     if proposal is None:
-        print("Claude decided no trade is warranted for this ticker today.")
+        print("Model decided no trade is warranted for this ticker today.")
         return
 
     print(f"strategy={proposal.strategy} legs={len(proposal.legs)} qty={proposal.quantity}")
@@ -114,8 +60,8 @@ async def run(ticker: str, run_date: str, dry_run: bool) -> None:
 
     async with AlpacaMcpClient() as mcp:
         print("=== Risk gates ===")
-        account = await _account_state(mcp)
-        leg_md = await _leg_market_data(mcp, proposal)
+        account = await account_state(mcp)
+        leg_md = await leg_market_data(mcp, proposal)
         result = risk_gates.evaluate(
             proposal,
             equity=account["equity"],
