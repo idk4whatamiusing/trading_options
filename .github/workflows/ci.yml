@@ -69,12 +69,22 @@ jobs:
         with:
           go-version: "stable"
           cache-dependency-path: ai/go.sum
+      - run: go build ./...
+      - run: go vet ./...
+
+  ai-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai/python
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m compileall -q python
-      - run: go build ./...
-      - run: go vet ./...
+      - run: pip install -r requirements.txt
+      - run: pip install pytest
+      - run: pytest tests
 
   # Cloudflare flavor only: the gateway dir only exists in that overlay
   gateway:
