@@ -16,6 +16,7 @@ from datetime import date, datetime, timezone
 import config
 import persistence
 import risk_gates
+import screener
 import tradingagents_client
 from alpaca_mcp_client import AlpacaMcpClient
 from executor import place
@@ -25,7 +26,6 @@ from options_strategy import propose_trade
 
 
 async def run(tickers: list[str] | None = None) -> CycleResult:
-    tickers = tickers or config.WATCHLIST
     run_date = date.today().isoformat()
     result = CycleResult(cycle_id=uuid.uuid4().hex, started_at=datetime.now(timezone.utc).isoformat())
 
@@ -39,6 +39,9 @@ async def run(tickers: list[str] | None = None) -> CycleResult:
     rolling_5d_pnl_pct = 0.0
 
     async with AlpacaMcpClient() as mcp:
+        if tickers is None:
+            tickers = config.WATCHLIST_OVERRIDE or await screener.screen_candidates(mcp)
+
         account = await account_state(mcp)
         equity = account["equity"]
         if prior_snapshots:

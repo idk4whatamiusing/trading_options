@@ -49,7 +49,8 @@ async def run_cycle(body: dict | None = None):
     if _lock.locked():
         return {"cycle_id": "", "status": "already_running"}
     asyncio.create_task(_run_cycle(tickers))
-    return {"cycle_id": "", "status": "running", "watchlist": tickers or config.WATCHLIST}
+    watchlist_label = tickers or config.WATCHLIST_OVERRIDE or "dynamic-screener"
+    return {"cycle_id": "", "status": "running", "watchlist": watchlist_label}
 
 
 @app.get("/last-cycle")

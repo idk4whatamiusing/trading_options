@@ -64,11 +64,19 @@ QUICK_THINK_LLM = os.getenv("QUICK_THINK_LLM", "@cf/meta/llama-3.1-8b-instruct-f
 STRUCTURING_LLM = os.getenv("STRUCTURING_LLM", "@cf/meta/llama-3.3-70b-instruct-fp8-fast")
 
 # ---- watchlist ----
+# DEFAULT_WATCHLIST is only a fallback (screener.py's screen_candidates() use
+# it when the live screener errors or turns up nothing) and the manual
+# override path: setting WATCHLIST skips screener.py entirely for that run
+# (useful for demos/debugging where a deterministic ticker list matters).
 DEFAULT_WATCHLIST = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "AMZN"]
-WATCHLIST = (
-    [t.strip().upper() for t in os.getenv("WATCHLIST", "").split(",") if t.strip()]
-    or DEFAULT_WATCHLIST
-)
+WATCHLIST_OVERRIDE = [t.strip().upper() for t in os.getenv("WATCHLIST", "").split(",") if t.strip()]
+WATCHLIST = WATCHLIST_OVERRIDE or DEFAULT_WATCHLIST
+
+# ---- dynamic ticker screener (cycle.py uses this instead of WATCHLIST
+# unless WATCHLIST is explicitly set) ----
+SCREENER_TOP_MOVERS = _env_int("SCREENER_TOP_MOVERS", 10)
+SCREENER_TOP_ACTIVE = _env_int("SCREENER_TOP_ACTIVE", 10)
+SCREENER_MAX_TICKERS = _env_int("SCREENER_MAX_TICKERS", 6)  # same LLM-cost bound as the old fixed list
 
 # ---- persistence / plumbing (Phase 2+, unused by scripts/run_once.py) ----
 DB_GRPC_ADDR = os.getenv("DB_GRPC_ADDR", "localhost:8010")
@@ -97,7 +105,7 @@ KILL_SWITCH_DRAWDOWN_PCT = _env_float("KILL_SWITCH_DRAWDOWN_PCT", -0.15)  # 12
 STARTING_EQUITY = _env_float("STARTING_EQUITY", 100_000.0)
 
 # ---- MCP ----
-ALPACA_TOOLSETS = "account,trading,assets,options-data"
+ALPACA_TOOLSETS = "account,trading,assets,options-data,stock-data"
 READ_ONLY_TOOL_WHITELIST = [
     "get_account_info",
     "get_option_chain",
