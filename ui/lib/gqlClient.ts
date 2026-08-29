@@ -1,6 +1,7 @@
 // Raw GraphQL client - zero dependencies.
-// POST for query/mutation (session cookie rides along), a ~60-line
-// graphql-transport-ws implementation for subscriptions.
+// POST for query/mutation, a ~60-line graphql-transport-ws implementation
+// for subscriptions. No auth: single-user dashboard over the trading
+// agent's persisted state.
 
 export interface GqlClient {
   graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T>;
@@ -80,17 +81,78 @@ export function createClient(baseURL = ""): GqlClient {
 
 // ---- shared queries/mutations ----
 
-export const ME = `{ me { id email } }`;
-export const CHAT_SESSIONS = `{ chatSessions { id title pinned updatedAt } }`;
+export const LATEST_SNAPSHOT = `{
+  latestSnapshot { equity cash buyingPower optionsBuyingPower dayPnl openPositionsCount createdAt }
+}`;
 
-export interface User {
-  id: string;
-  email: string;
+export const TRADES = `query ($status: String) {
+  trades(status: $status, limit: 50) {
+    id ticker strategy expiry quantity creditDebit netPremium maxProfit maxLoss
+    status alpacaOrderId realizedPnl rationale createdAt
+    legs { side right strike expiry symbol ratioQty }
+  }
+}`;
+
+export const DECISIONS = `{
+  decisions(limit: 50) { id ticker runDate direction confidence summary createdAt }
+}`;
+
+export const RISK_GATE_EVENTS = `{
+  riskGateEvents(limit: 100) { id tradeId gateName passed reason createdAt }
+}`;
+
+export interface Leg {
+  side: string;
+  right: string;
+  strike: number;
+  expiry: string;
+  symbol: string;
+  ratioQty: number;
 }
 
-export interface ChatSession {
+export interface Trade {
   id: string;
-  title: string;
-  pinned: boolean;
-  updatedAt: string;
+  ticker: string;
+  strategy: string;
+  expiry: string;
+  quantity: number;
+  creditDebit: string;
+  netPremium: number;
+  maxProfit: number;
+  maxLoss: number;
+  status: string;
+  alpacaOrderId?: string | null;
+  realizedPnl?: number | null;
+  rationale?: string | null;
+  createdAt: string;
+  legs: Leg[];
+}
+
+export interface Decision {
+  id: string;
+  ticker: string;
+  runDate: string;
+  direction: string;
+  confidence: number;
+  summary: string;
+  createdAt: string;
+}
+
+export interface RiskGateEvent {
+  id: string;
+  tradeId?: string | null;
+  gateName: string;
+  passed: boolean;
+  reason: string;
+  createdAt: string;
+}
+
+export interface AccountSnapshot {
+  equity: number;
+  cash: number;
+  buyingPower: number;
+  optionsBuyingPower?: number | null;
+  dayPnl?: number | null;
+  openPositionsCount: number;
+  createdAt: string;
 }

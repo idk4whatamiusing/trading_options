@@ -10,15 +10,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/idk4whatamiusing/meridian_stack/api/graph"
 	"github.com/idk4whatamiusing/meridian_stack/api/internal/clients"
 	"github.com/idk4whatamiusing/meridian_stack/api/internal/hub"
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 func envOr(k, def string) string {
@@ -46,8 +51,29 @@ func main() {
 
 	resolver := &graph.Resolver{Clients: cl, Hub: hb}
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
-	srv.AddTransport(&transport.Websocket{})
+	// Replicates handler.NewDefaultServer, except for the Websocket transport:
+	// AddTransport picks the *first* matching transport and NewDefaultServer
+	// already registers a same-origin-only Websocket transport, so appending
+	// a second, permissive one after it via AddTransport has no effect - the
+	// strict one still wins and silently closes the connection (code 1006).
+	// The dashboard is on a different origin from the API in every real
+	// deployment (different dev port locally; Cloudflare UI vs AWS API in
+	// prod), and there's no session/cookie riding on this connection (no
+	// auth at all - single-user demo), so skip the origin check entirely.
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
+	srv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: websocket.AcceptOptions{InsecureSkipVerify: true},
+		},
+	})
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.MultipartForm{})
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+	srv.Use(extension.Introspection{})
+	srv.Use(extension.AutomaticPersistedQuery{Cache: lru.New[string](100)})
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
