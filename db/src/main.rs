@@ -1,3 +1,8 @@
+// tonic-build generates every RPC trait method as Result<Response<T>, Status>
+// - Status is inherently ~176 bytes, so clippy's result_large_err fires on
+// every one of them. Boxing isn't practical here since these signatures must
+// match tonic's own generated trait exactly.
+#[allow(clippy::result_large_err)]
 mod pb {
     tonic::include_proto!("meridian.db.v1");
 }
