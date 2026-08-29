@@ -86,13 +86,11 @@ jobs:
       - run: pip install pytest
       - run: pytest tests
 
-  # Cloudflare flavor only: the gateway dir only exists in that overlay
   gateway:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: gateway
-    if: ${{ hashFiles('gateway/**') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
