@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+mcp
+apscheduler
+python-dotenv
+grpcio
+grpcio-tools
+tradingagents @ git+https://github.com/TauricResearch/TradingAgents.git
