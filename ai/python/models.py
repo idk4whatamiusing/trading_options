@@ -30,7 +30,9 @@ class Leg:
 @dataclass
 class TradeProposal:
     ticker: str
-    strategy: str  # bull_put_spread | bear_call_spread | iron_condor | bull_call_spread | bear_put_spread
+    strategy: (
+        str  # bull_put_spread | bear_call_spread | iron_condor | bull_call_spread | bear_put_spread
+    )
     legs: list[Leg]
     expiry: str
     quantity: int

@@ -1,0 +1,22 @@
+# Default owners for everything
+* @idk4whatamiusing
+
+# Frontend
+ui/ @idk4whatamiusing
+
+# Backend
+api/ @idk4whatamiusing
+db/ @idk4whatamiusing
+ai/ @idk4whatamiusing
+
+# Edge
+gateway/ @idk4whatamiusing
+
+# Contracts
+packages/proto/ @idk4whatamiusing
+
+# DevOps & CI/CD
+.github/ @idk4whatamiusing
+infra/ @idk4whatamiusing
+compose.prod.yaml @idk4whatamiusing
+Caddyfile @idk4whatamiusing

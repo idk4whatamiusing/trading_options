@@ -1,0 +1,61 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 6am
+
+jobs:
+  trivy:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan (dependency vulnerabilities)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          format: "table"
+          skip-dirs: "infra,node_modules,ui/.next,.next"
+
+      - name: Run Trivy config scan (Dockerfile misconfiguration)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: "config"
+          scan-ref: "."
+          severity: "CRITICAL"
+          exit-code: "1"
+          format: "table"
+          skip-dirs: "infra,node_modules,ui/.next,.next"
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["go", "python", "javascript-typescript"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

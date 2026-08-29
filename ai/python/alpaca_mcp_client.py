@@ -46,7 +46,9 @@ class AlpacaMcpClient:
         )
         self._stack = AsyncExitStack()
         read_stream, write_stream = await self._stack.enter_async_context(stdio_client(params))
-        self.session = await self._stack.enter_async_context(ClientSession(read_stream, write_stream))
+        self.session = await self._stack.enter_async_context(
+            ClientSession(read_stream, write_stream)
+        )
         await self.session.initialize()
         result = await self.session.list_tools()
         self._tools = result.tools

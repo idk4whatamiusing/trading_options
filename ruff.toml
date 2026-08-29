@@ -1,0 +1,19 @@
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "F401",   # unused import (common in research code)
+    "F811",   # redefinition of unused name
+    "F841",   # local variable assigned but never used
+    "E402",   # module level import not at top of file
+    "E741",   # ambiguous variable name
+    "W291",   # trailing whitespace
+    "W293",   # whitespace before ':'
+]
+
+[lint.per-file-ignores]
+"ai/python/tests/*" = ["F401", "F811"]
+"ai/python/**" = ["E402", "F401"]

@@ -27,7 +27,9 @@ from options_strategy import propose_trade
 
 async def run(tickers: list[str] | None = None) -> CycleResult:
     run_date = date.today().isoformat()
-    result = CycleResult(cycle_id=uuid.uuid4().hex, started_at=datetime.now(timezone.utc).isoformat())
+    result = CycleResult(
+        cycle_id=uuid.uuid4().hex, started_at=datetime.now(timezone.utc).isoformat()
+    )
 
     try:
         prior_snapshots = persistence.list_account_snapshots(limit=5)

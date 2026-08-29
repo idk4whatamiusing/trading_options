@@ -1,34 +1,25 @@
-name: CD
+name: CD - Deploy
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
-  deploy-cloudflare:
+  deploy:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: BUILD_TARGET=export bun run build:ui
-        env:
-          NEXT_PUBLIC_API_URL: ${{ vars.API_ORIGIN }}
-      - run: npm install --no-audit --no-fund
-        working-directory: gateway
-      - name: Deploy gateway worker
-        working-directory: gateway
-        run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
 
-  deploy-aws:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy via SSH
+        with:
+          fetch-depth: 2
+
+      # --- Deploy to AWS EC2 ---
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -36,7 +27,107 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           command_timeout: 30m
           script: |
-            cd ~/app || exit 1
-            git pull --ff-only || exit 1
-            docker compose -f compose.prod.yaml up -d --build
-            docker image prune -f
+            cd ~/app
+
+            # Capture old HEAD before pull
+            OLD_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "")
+
+            git pull origin main
+
+            # Create .env if it doesn't exist
+            if [ ! -f .env ]; then
+              echo "DOMAIN=${{ vars.DOMAIN }}" > .env
+              echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
+              echo "BACKEND_SECRET=$(openssl rand -base64 32)" >> .env
+              echo "ALPACA_API_KEY=${{ secrets.ALPACA_API_KEY }}" >> .env
+              echo "ALPACA_SECRET_KEY=${{ secrets.ALPACA_SECRET_KEY }}" >> .env
+              echo "ALPACA_PAPER_TRADE=true" >> .env
+              echo "CF_ACCOUNT_ID=${{ secrets.CF_ACCOUNT_ID }}" >> .env
+              echo "CF_API_TOKEN=${{ secrets.CF_API_TOKEN }}" >> .env
+            fi
+
+            # Setup swap if missing
+            if [ ! -f /swapfile ]; then
+              sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+            fi
+
+            # Prune old Docker build cache (older than 7 days)
+            docker builder prune --filter until=168h --force 2>/dev/null || true
+
+            # Get current commit SHA for tagging
+            NEW_HEAD=$(git rev-parse --short HEAD)
+            export TAG="$NEW_HEAD"
+
+            # Detect changed files and rebuild only affected services
+            if [ -n "$OLD_HEAD" ]; then
+              CHANGED=$(git diff --name-only "$OLD_HEAD" HEAD 2>/dev/null || true)
+            else
+              CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+            fi
+
+            REBUILD=()
+            echo "$CHANGED" | grep -qE '^ui/|^(package\.json|bun\.lock|packages/)' && REBUILD+=("ui")
+            echo "$CHANGED" | grep -qE '^api/' && REBUILD+=("api")
+            echo "$CHANGED" | grep -qE '^db/|^packages/proto/' && REBUILD+=("db")
+            echo "$CHANGED" | grep -qE '^ai/|^api/' && REBUILD+=("ai")
+            echo "$CHANGED" | grep -qE '^realtime/' && REBUILD+=("realtime")
+
+            # Full rebuild if infra/compose/Dockerfiles changed
+            echo "$CHANGED" | grep -qE '^compose\.(prod\.)?yaml|Dockerfile|\.dockerignore' && \
+              REBUILD=("ui" "api" "db" "ai" "realtime")
+
+            if [ ${#REBUILD[@]} -eq 0 ]; then
+              echo "No service changes detected. Skipping build."
+              echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) SKIP no changes" >> .deploy-log
+              exit 0
+            fi
+
+            echo "Rebuilding services: ${REBUILD[*]}"
+
+            export COMPOSE_DOCKER_CLI_BUILD=1
+            export DOCKER_BUILDKIT=1
+
+            docker compose -f compose.prod.yaml build "${REBUILD[@]}"
+
+            for svc in "${REBUILD[@]}"; do
+              docker compose -f compose.prod.yaml up -d --no-deps "$svc"
+            done
+
+            # Ensure caddy is running (reverse proxy to all services)
+            docker compose -f compose.prod.yaml up -d caddy
+
+            # Log deployment
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) DEPLOY $NEW_HEAD services=${REBUILD[*]}" >> .deploy-log
+
+      # --- Deploy to Cloudflare Workers (only if gateway/ui changed) ---
+      - name: Check if CF deploy needed
+        id: cf-check
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+          if echo "$CHANGED" | grep -qE '^(gateway/|ui/|package\.json|bun\.lock|packages/)'; then
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Bun
+        if: steps.cf-check.outputs.deploy == 'true'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Build UI for static export
+        if: steps.cf-check.outputs.deploy == 'true'
+        run: bun install && BUILD_TARGET=export bun run build:ui
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.API_ORIGIN }}
+
+      - name: Install gateway deps
+        if: steps.cf-check.outputs.deploy == 'true'
+        run: cd gateway && npm ci --legacy-peer-deps
+
+      - name: Deploy Cloudflare Worker
+        if: steps.cf-check.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: gateway
+          command: deploy

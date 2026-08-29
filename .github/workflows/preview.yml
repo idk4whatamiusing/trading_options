@@ -1,0 +1,127 @@
+name: PR Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - "gateway/**"
+      - "ui/**"
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine preview type
+        id: preview
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD 2>/dev/null || true)
+          if echo "$CHANGED" | grep -qE '^gateway/'; then
+            echo "gateway=true" >> $GITHUB_OUTPUT
+          fi
+          if echo "$CHANGED" | grep -qE '^ui/'; then
+            echo "ui=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Bun
+        if: steps.preview.outputs.ui == 'true'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Build UI for static export
+        if: steps.preview.outputs.ui == 'true'
+        run: bun install && BUILD_TARGET=export bun run build:ui
+
+      - name: Setup Node
+        if: steps.preview.outputs.gateway == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install gateway deps
+        if: steps.preview.outputs.gateway == 'true'
+        run: cd gateway && npm ci --legacy-peer-deps
+
+      - name: Deploy preview gateway
+        if: steps.preview.outputs.gateway == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: gateway
+          command: deploy --name gateway-pr-${{ github.event.pull_request.number }}
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const urls = [];
+            if ('${{ steps.preview.outputs.gateway }}' === 'true') {
+              urls.push(`- Gateway: https://gateway-pr-${prNumber}.workers.dev`);
+            }
+            if ('${{ steps.preview.outputs.ui }}' === 'true') {
+              urls.push(`- UI: https://gateway-pr-${prNumber}.workers.dev`);
+            }
+            if (urls.length === 0) return;
+
+            const body = `## 🚀 Preview Deployed\n\n${urls.join('\n')}\n\n_This preview will be automatically cleaned up when the PR is closed._`;
+
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Preview Deployed')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+  cleanup-preview:
+    name: Cleanup Preview
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete preview gateway
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: gateway
+          command: delete --name gateway-pr-${{ github.event.pull_request.number }} --yes || true
+
+      - name: Comment cleanup on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: '🧹 Preview environments have been cleaned up.',
+            });

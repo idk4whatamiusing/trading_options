@@ -1,4 +1,3 @@
-# CI - generated project (v0.5.0 polyglot layout)
 name: CI
 
 on:
@@ -7,7 +6,47 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+      api: ${{ steps.filter.outputs.api }}
+      db: ${{ steps.filter.outputs.db }}
+      realtime: ${{ steps.filter.outputs.realtime }}
+      ai: ${{ steps.filter.outputs.ai }}
+      gateway: ${{ steps.filter.outputs.gateway }}
+      python: ${{ steps.filter.outputs.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ui:
+              - 'ui/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'packages/**'
+            api:
+              - 'api/**'
+            db:
+              - 'db/**'
+              - 'packages/proto/**'
+            realtime:
+              - 'realtime/**'
+            ai:
+              - 'ai/**'
+              - 'api/**'
+            gateway:
+              - 'gateway/**'
+            python:
+              - 'ai/python/**'
+
   ui:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,6 +55,8 @@ jobs:
       - run: bun run build:ui
 
   api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,6 +71,8 @@ jobs:
       - run: go vet ./...
 
   db:
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,6 +87,8 @@ jobs:
       - run: cargo build
 
   realtime:
+    needs: changes
+    if: needs.changes.outputs.realtime == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,6 +103,8 @@ jobs:
       - run: gleam build
 
   ai:
+    needs: changes
+    if: needs.changes.outputs.ai == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -72,6 +119,8 @@ jobs:
       - run: go vet ./...
 
   ai-python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || needs.changes.outputs.ai == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -86,6 +135,8 @@ jobs:
       - run: pytest tests
 
   gateway:
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -95,5 +146,128 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npx tsc --noEmit
+
+  ruff-lint:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || needs.changes.outputs.ai == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check ai/python/
+      - run: ruff format --check ai/python/
+
+  clippy-fmt:
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: db
+      - uses: arduino/setup-protoc@v3
+      - run: cargo clippy -- -D warnings
+      - run: cargo fmt --check
+
+  golangci-lint:
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.ai == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: ${{ needs.changes.outputs.api == 'true' && 'api' || 'ai' }}
+
+  eslint:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true' || needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        if: needs.changes.outputs.ui == 'true'
+        uses: oven-sh/setup-bun@v2
+      - name: Install root deps
+        if: needs.changes.outputs.ui == 'true'
+        run: bun install --frozen-lockfile
+      - name: Lint UI with eslint
+        if: needs.changes.outputs.ui == 'true'
+        working-directory: ui
+        run: npx eslint .
+      - name: Check UI formatting
+        if: needs.changes.outputs.ui == 'true'
+        working-directory: ui
+        run: npx prettier --check .
+      - name: Setup Node
+        if: needs.changes.outputs.gateway == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install and lint Gateway
+        if: needs.changes.outputs.gateway == 'true'
+        working-directory: gateway
+        run: |
+          npm ci --no-audit --no-fund --ignore-scripts
+          npm run lint
+          npm run format:check
+
+  ci-gate:
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      [
+        changes,
+        ui,
+        api,
+        db,
+        realtime,
+        ai,
+        ai-python,
+        gateway,
+        ruff-lint,
+        clippy-fmt,
+        golangci-lint,
+        eslint,
+      ]
+    steps:
+      - name: Evaluate gate
+        run: |
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "::error::Change detection failed"
+            exit 1
+          fi
+          for result in \
+            "${{ needs.ui.result }}" \
+            "${{ needs.api.result }}" \
+            "${{ needs.db.result }}" \
+            "${{ needs.realtime.result }}" \
+            "${{ needs.ai.result }}" \
+            "${{ needs.ai-python.result }}" \
+            "${{ needs.gateway.result }}" \
+            "${{ needs.ruff-lint.result }}" \
+            "${{ needs.clippy-fmt.result }}" \
+            "${{ needs.golangci-lint.result }}" \
+            "${{ needs.eslint.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::A required job failed or was cancelled (result=$result)"
+              exit 1
+            fi
+          done
+          echo "All required checks passed or were skipped"

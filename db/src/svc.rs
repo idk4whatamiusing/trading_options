@@ -6,11 +6,10 @@ use uuid::Uuid;
 use crate::pb::{
     db_server::Db, AccountSnapshot, CreateDecisionReply, CreateDecisionRequest, CreateTradeReply,
     CreateTradeRequest, Decision, GetLatestAccountSnapshotRequest, Leg, ListAccountSnapshotsReply,
-    ListAccountSnapshotsRequest, ListDecisionsReply, ListDecisionsRequest,
-    ListRiskGateEventsReply, ListRiskGateEventsRequest, ListTradesReply, ListTradesRequest,
-    LogRiskGateEventReply, LogRiskGateEventRequest, RecordAccountSnapshotReply,
-    RecordAccountSnapshotRequest, RiskGateEvent, Trade, UpdateTradeStatusReply,
-    UpdateTradeStatusRequest,
+    ListAccountSnapshotsRequest, ListDecisionsReply, ListDecisionsRequest, ListRiskGateEventsReply,
+    ListRiskGateEventsRequest, ListTradesReply, ListTradesRequest, LogRiskGateEventReply,
+    LogRiskGateEventRequest, RecordAccountSnapshotReply, RecordAccountSnapshotRequest,
+    RiskGateEvent, Trade, UpdateTradeStatusReply, UpdateTradeStatusRequest,
 };
 
 pub struct DbService {
@@ -24,6 +23,10 @@ impl DbService {
     }
 
     // every call must carry x-backend-secret - this service is private-network only
+    // tonic::Status is the required error type for every RPC handler's `?` to
+    // propagate through - boxing it would ripple into tonic's generated trait
+    // signatures, not just this helper.
+    #[allow(clippy::result_large_err)]
     fn authorize<T>(&self, req: &Request<T>) -> Result<(), Status> {
         let got = req
             .metadata()
@@ -45,10 +48,12 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
+#[allow(clippy::result_large_err)]
 fn parse_uuid(s: &str) -> Result<Uuid, Status> {
     Uuid::parse_str(s).map_err(|_| Status::invalid_argument("expected uuid"))
 }
 
+#[allow(clippy::result_large_err)]
 fn parse_date(s: &str) -> Result<NaiveDate, Status> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d")
         .map_err(|_| Status::invalid_argument(format!("expected YYYY-MM-DD, got {s:?}")))
@@ -235,7 +240,9 @@ impl Db for DbService {
         .fetch_one(&self.pool)
         .await
         .map_err(db_err)?;
-        Ok(Response::new(CreateDecisionReply { id: row.0.to_string() }))
+        Ok(Response::new(CreateDecisionReply {
+            id: row.0.to_string(),
+        }))
     }
 
     async fn list_decisions(
@@ -290,7 +297,9 @@ impl Db for DbService {
         .fetch_one(&self.pool)
         .await
         .map_err(db_err)?;
-        Ok(Response::new(CreateTradeReply { id: row.0.to_string() }))
+        Ok(Response::new(CreateTradeReply {
+            id: row.0.to_string(),
+        }))
     }
 
     async fn update_trade_status(
@@ -376,7 +385,9 @@ impl Db for DbService {
         .fetch_one(&self.pool)
         .await
         .map_err(db_err)?;
-        Ok(Response::new(LogRiskGateEventReply { id: row.0.to_string() }))
+        Ok(Response::new(LogRiskGateEventReply {
+            id: row.0.to_string(),
+        }))
     }
 
     async fn list_risk_gate_events(
@@ -418,7 +429,9 @@ impl Db for DbService {
         .fetch_one(&self.pool)
         .await
         .map_err(db_err)?;
-        Ok(Response::new(RecordAccountSnapshotReply { id: row.0.to_string() }))
+        Ok(Response::new(RecordAccountSnapshotReply {
+            id: row.0.to_string(),
+        }))
     }
 
     async fn get_latest_account_snapshot(

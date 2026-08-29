@@ -29,6 +29,7 @@ def _debug(*args: object) -> None:
     if _DEBUG:
         print("[options_strategy]", *args, file=sys.stderr)
 
+
 import config
 from alpaca_mcp_client import AlpacaMcpClient
 from models import Leg, SignalResult, TradeProposal
@@ -78,16 +79,35 @@ PROPOSE_TRADE_FUNCTION = {
                 },
             },
             "expiry": {"type": "string", "description": "YYYY-MM-DD, common expiry of the legs"},
-            "quantity": {"type": "integer", "description": "number of spreads/condors, 0 if no trade"},
+            "quantity": {
+                "type": "integer",
+                "description": "number of spreads/condors, 0 if no trade",
+            },
             "credit_debit": {"type": "string", "enum": ["credit", "debit"]},
-            "net_premium": {"type": "number", "description": "per-spread net credit or debit received/paid, positive"},
-            "max_profit": {"type": "number", "description": "total max profit across `quantity` spreads, in dollars"},
-            "max_loss": {"type": "number", "description": "total max loss across `quantity` spreads, in dollars"},
+            "net_premium": {
+                "type": "number",
+                "description": "per-spread net credit or debit received/paid, positive",
+            },
+            "max_profit": {
+                "type": "number",
+                "description": "total max profit across `quantity` spreads, in dollars",
+            },
+            "max_loss": {
+                "type": "number",
+                "description": "total max loss across `quantity` spreads, in dollars",
+            },
             "rationale": {"type": "string"},
         },
         "required": [
-            "strategy", "legs", "expiry", "quantity", "credit_debit",
-            "net_premium", "max_profit", "max_loss", "rationale",
+            "strategy",
+            "legs",
+            "expiry",
+            "quantity",
+            "credit_debit",
+            "net_premium",
+            "max_profit",
+            "max_loss",
+            "rationale",
         ],
     },
 }
@@ -160,7 +180,9 @@ once with your final structure. Every leg quantity must balance (equal buy
 and sell contract counts) - no naked legs."""
 
 
-async def _chat_completion(client: httpx.AsyncClient, messages: list[dict], tools: list[dict]) -> dict:
+async def _chat_completion(
+    client: httpx.AsyncClient, messages: list[dict], tools: list[dict]
+) -> dict:
     resp = await client.post(
         f"{config.CF_BASE_URL}/chat/completions",
         headers={"Authorization": f"Bearer {config.CF_API_TOKEN}"},
@@ -246,7 +268,10 @@ async def propose_trade(signal: SignalResult) -> TradeProposal | None:
 
         messages: list[dict] = [
             {"role": "system", "content": _system_prompt(signal)},
-            {"role": "user", "content": f"Structure a trade (or decide not to) for {signal.ticker}."},
+            {
+                "role": "user",
+                "content": f"Structure a trade (or decide not to) for {signal.ticker}.",
+            },
         ]
 
         # Note: the schema-omission trick alone isn't a reliable gate - this
@@ -380,7 +405,9 @@ async def propose_trade(signal: SignalResult) -> TradeProposal | None:
                 # proposed quantity 0 (a grounded "no trade" decision).
                 return accepted_proposal
 
-        raise RuntimeError(f"options_strategy: exceeded {MAX_TOOL_ITERATIONS} tool iterations without a proposal")
+        raise RuntimeError(
+            f"options_strategy: exceeded {MAX_TOOL_ITERATIONS} tool iterations without a proposal"
+        )
 
 
 def _parse_proposal(ticker: str, data: dict) -> TradeProposal | None:

@@ -10,6 +10,20 @@
     "dev:db": "cargo run --manifest-path db/Cargo.toml",
     "dev:api": "go run ./api",
     "dev:realtime": "cd realtime && gleam run",
-    "build:ui": "bun --cwd ui build"
+    "build:ui": "bun --cwd ui build",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
+    "prettier": "^3.9.6"
   }
 }

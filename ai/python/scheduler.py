@@ -26,8 +26,11 @@ async def _scheduled_run() -> None:
     result = await cycle.run()
     logger.info(
         "scheduled cycle %s: %d evaluated, %d placed, %d blocked, status=%s",
-        result.cycle_id, result.tickers_evaluated, result.trades_placed,
-        result.trades_blocked, result.status,
+        result.cycle_id,
+        result.tickers_evaluated,
+        result.trades_placed,
+        result.trades_blocked,
+        result.status,
     )
 
 

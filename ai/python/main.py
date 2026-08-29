@@ -57,9 +57,15 @@ async def run_cycle(body: dict | None = None):
 def last_cycle():
     if _last_cycle is None:
         return {
-            "cycle_id": "", "started_at": "", "finished_at": "",
-            "tickers_evaluated": 0, "trades_proposed": 0, "trades_placed": 0,
-            "trades_blocked": 0, "errors": [], "status": "idle",
+            "cycle_id": "",
+            "started_at": "",
+            "finished_at": "",
+            "tickers_evaluated": 0,
+            "trades_proposed": 0,
+            "trades_placed": 0,
+            "trades_blocked": 0,
+            "errors": [],
+            "status": "idle",
         }
     return {
         "cycle_id": _last_cycle.cycle_id,

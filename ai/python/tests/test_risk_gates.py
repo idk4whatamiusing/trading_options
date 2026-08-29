@@ -114,7 +114,9 @@ def test_max_concurrent_positions_fails_at_limit():
 
 # 5. max concurrent positions per underlying
 def test_max_positions_per_underlying_fails_at_limit():
-    open_trades = [FakeOpenTrade("SPY", 0.0) for _ in range(config.MAX_CONCURRENT_POSITIONS_PER_UNDERLYING)]
+    open_trades = [
+        FakeOpenTrade("SPY", 0.0) for _ in range(config.MAX_CONCURRENT_POSITIONS_PER_UNDERLYING)
+    ]
     assert not _outcome(_evaluate(open_trades=open_trades), "max_positions_per_underlying").passed
 
 
@@ -153,12 +155,16 @@ def test_max_contracts_per_leg_fails_over_limit():
 
 # 9. buying power (per-trade cap, then post-trade utilization)
 def test_buying_power_fails_when_capital_required_exceeds_per_trade_cap():
-    result = _evaluate(capital_required=60_000.0, options_buying_power=50_000.0, total_buying_power=1_000_000.0)
+    result = _evaluate(
+        capital_required=60_000.0, options_buying_power=50_000.0, total_buying_power=1_000_000.0
+    )
     assert not _outcome(result, "buying_power").passed
 
 
 def test_buying_power_fails_when_utilization_after_trade_too_high():
-    result = _evaluate(capital_required=200_000.0, options_buying_power=1_000_000.0, total_buying_power=200_000.0)
+    result = _evaluate(
+        capital_required=200_000.0, options_buying_power=1_000_000.0, total_buying_power=200_000.0
+    )
     assert not _outcome(result, "buying_power").passed
 
 

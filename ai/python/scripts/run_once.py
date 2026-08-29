@@ -39,7 +39,9 @@ async def run(ticker: str, run_date: str, dry_run: bool) -> None:
     print()
 
     if signal.direction == "HOLD":
-        print("HOLD signal - no trade attempted (per pipeline: only BUY/SELL signals go to structuring).")
+        print(
+            "HOLD signal - no trade attempted (per pipeline: only BUY/SELL signals go to structuring)."
+        )
         return
 
     print("=== Options structuring ===")
@@ -50,7 +52,9 @@ async def run(ticker: str, run_date: str, dry_run: bool) -> None:
 
     print(f"strategy={proposal.strategy} legs={len(proposal.legs)} qty={proposal.quantity}")
     for leg in proposal.legs:
-        print(f"  {leg.side:4s} {leg.right:4s} {leg.strike:>8.2f} {leg.expiry} x{leg.ratio_qty}  {leg.symbol}")
+        print(
+            f"  {leg.side:4s} {leg.right:4s} {leg.strike:>8.2f} {leg.expiry} x{leg.ratio_qty}  {leg.symbol}"
+        )
     print(
         f"{proposal.credit_debit} ${proposal.net_premium:.2f}/spread  "
         f"max_profit=${proposal.max_profit:.2f}  max_loss=${proposal.max_loss:.2f}"

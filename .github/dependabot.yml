@@ -1,0 +1,50 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "gomod"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "gomod"
+    directory: "/ai"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "pip"
+    directory: "/ai/python"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "cargo"
+    directory: "/db"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
