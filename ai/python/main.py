@@ -64,6 +64,7 @@ def last_cycle():
             "trades_proposed": 0,
             "trades_placed": 0,
             "trades_blocked": 0,
+            "positions_closed": 0,
             "errors": [],
             "status": "idle",
         }
@@ -75,6 +76,7 @@ def last_cycle():
         "trades_proposed": _last_cycle.trades_proposed,
         "trades_placed": _last_cycle.trades_placed,
         "trades_blocked": _last_cycle.trades_blocked,
+        "positions_closed": _last_cycle.positions_closed,
         "errors": _last_cycle.errors,
         "status": _last_cycle.status,
     }

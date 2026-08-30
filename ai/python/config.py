@@ -84,33 +84,52 @@ SCREENER_MAX_TICKERS = _env_int(
 DB_GRPC_ADDR = os.getenv("DB_GRPC_ADDR", "localhost:8010")
 BACKEND_SECRET = os.getenv("BACKEND_SECRET", "change-me")
 
-# ---- risk gates (numeric, $100k account, credit-spread-family strategy) ----
+# ---- risk gates (numeric, $100k account) ----
+# "Higher risk" tier (user-confirmed): tuned for return-maximization via long
+# calls/puts on high-conviction signals rather than the old credit-spread-
+# family's capped-upside design. These are hard ceilings enforced in code
+# (risk_gates.py) - the LLM decides how much of each budget to actually use
+# per trade (see options_strategy.py's risk-budget disclosure), but can never
+# exceed them regardless of its own reasoning.
+#
 # 1. Defined-risk only is enforced structurally in options_strategy.py /
-#    risk_gates.py (every leg must have a matching offsetting leg) - no
+#    risk_gates.py (every leg must have a matching offsetting leg, OR be a
+#    buy-only long call/put whose max loss is the premium paid) - no
 #    separate numeric constant.
-MAX_LOSS_PCT_OF_EQUITY_PER_TRADE = _env_float("MAX_LOSS_PCT_OF_EQUITY_PER_TRADE", 0.02)  # 2
-MAX_AGGREGATE_RISK_PCT_OF_EQUITY = _env_float("MAX_AGGREGATE_RISK_PCT_OF_EQUITY", 0.10)  # 3
-MAX_CONCURRENT_OPEN_POSITIONS = _env_int("MAX_CONCURRENT_OPEN_POSITIONS", 8)  # 4
+MAX_LOSS_PCT_OF_EQUITY_PER_TRADE = _env_float("MAX_LOSS_PCT_OF_EQUITY_PER_TRADE", 0.08)  # 2
+MAX_AGGREGATE_RISK_PCT_OF_EQUITY = _env_float("MAX_AGGREGATE_RISK_PCT_OF_EQUITY", 0.35)  # 3
+MAX_CONCURRENT_OPEN_POSITIONS = _env_int("MAX_CONCURRENT_OPEN_POSITIONS", 10)  # 4
 MAX_CONCURRENT_POSITIONS_PER_UNDERLYING = _env_int(
     "MAX_CONCURRENT_POSITIONS_PER_UNDERLYING", 2
 )  # 5
-MIN_DTE = _env_int("MIN_DTE", 7)  # 6
-MAX_DTE = _env_int("MAX_DTE", 45)  # 6
-TARGET_DTE_LOW = _env_int("TARGET_DTE_LOW", 21)
-TARGET_DTE_HIGH = _env_int("TARGET_DTE_HIGH", 35)
-MIN_OPEN_INTEREST = _env_int("MIN_OPEN_INTEREST", 100)  # 7
-MAX_BID_ASK_SPREAD_PCT_OF_MID = _env_float("MAX_BID_ASK_SPREAD_PCT_OF_MID", 0.15)  # 7
-MAX_CONTRACTS_PER_LEG = _env_int("MAX_CONTRACTS_PER_LEG", 10)  # 8
+MIN_DTE = _env_int("MIN_DTE", 5)  # 6
+MAX_DTE = _env_int("MAX_DTE", 30)  # 6
+TARGET_DTE_LOW = _env_int("TARGET_DTE_LOW", 7)
+TARGET_DTE_HIGH = _env_int("TARGET_DTE_HIGH", 21)
+# 7. quality gates, not risk-appetite ones - left unchanged from the
+#    conservative tier (loosening these buys worse fills, not more return).
+MIN_OPEN_INTEREST = _env_int("MIN_OPEN_INTEREST", 100)
+MAX_BID_ASK_SPREAD_PCT_OF_MID = _env_float("MAX_BID_ASK_SPREAD_PCT_OF_MID", 0.15)
+MAX_CONTRACTS_PER_LEG = _env_int("MAX_CONTRACTS_PER_LEG", 20)  # 8
 MAX_TRADE_PCT_OF_OPTIONS_BUYING_POWER = _env_float(
-    "MAX_TRADE_PCT_OF_OPTIONS_BUYING_POWER", 0.25
+    "MAX_TRADE_PCT_OF_OPTIONS_BUYING_POWER", 0.50
 )  # 9
 MAX_BUYING_POWER_UTILIZATION_AFTER_TRADE = _env_float(
-    "MAX_BUYING_POWER_UTILIZATION_AFTER_TRADE", 0.90
+    "MAX_BUYING_POWER_UTILIZATION_AFTER_TRADE", 0.95
 )  # 9
+# Circuit breakers matter *more*, not less, at higher per-trade sizing - left
+# unchanged from the conservative tier, they're the actual backstop against
+# total ruin.
 DAILY_LOSS_CIRCUIT_BREAKER_PCT = _env_float("DAILY_LOSS_CIRCUIT_BREAKER_PCT", -0.03)  # 10
 ROLLING_5D_LOSS_CIRCUIT_BREAKER_PCT = _env_float("ROLLING_5D_LOSS_CIRCUIT_BREAKER_PCT", -0.06)  # 11
 KILL_SWITCH_DRAWDOWN_PCT = _env_float("KILL_SWITCH_DRAWDOWN_PCT", -0.15)  # 12
 STARTING_EQUITY = _env_float("STARTING_EQUITY", 100_000.0)
+
+# ---- position management (exit rules - previously nothing ever closed a
+# position once opened) ----
+TAKE_PROFIT_PCT = _env_float("TAKE_PROFIT_PCT", 1.00)  # close at +100% unrealized
+STOP_LOSS_PCT = _env_float("STOP_LOSS_PCT", -0.50)  # close at -50% unrealized
+MIN_DTE_BEFORE_FORCE_CLOSE = _env_int("MIN_DTE_BEFORE_FORCE_CLOSE", 3)
 
 # ---- MCP ----
 ALPACA_TOOLSETS = "account,trading,assets,options-data,stock-data"

@@ -65,5 +65,6 @@ class CycleResult:
     trades_proposed: int = 0
     trades_placed: int = 0
     trades_blocked: int = 0
+    positions_closed: int = 0
     errors: list[str] = field(default_factory=list)
     status: str = "running"  # running | ok | error | idle

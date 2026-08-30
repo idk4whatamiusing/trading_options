@@ -15,6 +15,7 @@ from datetime import date, datetime, timezone
 
 import config
 import persistence
+import position_manager
 import risk_gates
 import screener
 import tradingagents_client
@@ -44,6 +45,12 @@ async def run(tickers: list[str] | None = None) -> CycleResult:
         if tickers is None:
             tickers = config.WATCHLIST_OVERRIDE or await screener.screen_candidates(mcp)
 
+        try:
+            closed = await position_manager.manage_open_positions(mcp)
+            result.positions_closed += len(closed)
+        except Exception as exc:  # noqa: BLE001 - a bad close shouldn't kill the cycle
+            result.errors.append(f"position management failed: {exc}")
+
         account = await account_state(mcp)
         equity = account["equity"]
         if prior_snapshots:
@@ -63,14 +70,24 @@ async def run(tickers: list[str] | None = None) -> CycleResult:
                 if signal.direction == "HOLD":
                     continue
 
-                proposal = await propose_trade(signal)
+                open_trades = persistence.list_trades(status="open")
+                max_loss_budget = config.MAX_LOSS_PCT_OF_EQUITY_PER_TRADE * equity
+                aggregate_budget = config.MAX_AGGREGATE_RISK_PCT_OF_EQUITY * equity
+                aggregate_used = sum(t.max_loss for t in open_trades)
+                remaining_aggregate_budget = max(aggregate_budget - aggregate_used, 0.0)
+
+                proposal = await propose_trade(
+                    signal,
+                    equity=equity,
+                    max_loss_budget=max_loss_budget,
+                    remaining_aggregate_budget=remaining_aggregate_budget,
+                )
                 if proposal is None:
                     continue
 
                 result.trades_proposed += 1
                 trade_id = persistence.create_trade(decision_id, proposal)
 
-                open_trades = persistence.list_trades(status="open")
                 account_now = await account_state(mcp)
                 leg_md = await leg_market_data(mcp, proposal)
                 gate_result = risk_gates.evaluate(

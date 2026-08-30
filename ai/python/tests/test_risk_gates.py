@@ -80,11 +80,17 @@ def test_baseline_proposal_passes_every_gate():
     assert all(o.passed for o in result.outcomes)
 
 
-# 1. defined-risk only (matched spread)
+# 1. defined-risk only (matched spread, or a long-only position)
 def test_defined_risk_fails_on_naked_leg():
     proposal = _baseline_proposal()
     proposal.legs = [proposal.legs[0]]  # short leg only, no offsetting long
     assert not _outcome(_evaluate(proposal), "defined_risk_only").passed
+
+
+def test_defined_risk_passes_long_only_position():
+    proposal = _baseline_proposal()
+    proposal.legs = [proposal.legs[1]]  # buy leg only - a plain long call/put
+    assert _outcome(_evaluate(proposal), "defined_risk_only").passed
 
 
 def test_defined_risk_fails_on_unmatched_quantities():

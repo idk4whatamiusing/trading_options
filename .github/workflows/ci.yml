@@ -132,6 +132,11 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: pip install pytest pytest-asyncio
+      - name: Generate db_pb2 (gitignored, needed by persistence.py)
+        run: |
+          mkdir -p pb
+          python -m grpc_tools.protoc -I ../../packages/proto \
+            --python_out=pb --grpc_python_out=pb ../../packages/proto/db.proto
       - run: pytest tests
 
   gateway:

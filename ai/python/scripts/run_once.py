@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import config  # noqa: E402
 import risk_gates  # noqa: E402
 import tradingagents_client  # noqa: E402
 from alpaca_mcp_client import AlpacaMcpClient  # noqa: E402
@@ -44,27 +45,33 @@ async def run(ticker: str, run_date: str, dry_run: bool) -> None:
         )
         return
 
-    print("=== Options structuring ===")
-    proposal = await propose_trade(signal)
-    if proposal is None:
-        print("Model decided no trade is warranted for this ticker today.")
-        return
-
-    print(f"strategy={proposal.strategy} legs={len(proposal.legs)} qty={proposal.quantity}")
-    for leg in proposal.legs:
-        print(
-            f"  {leg.side:4s} {leg.right:4s} {leg.strike:>8.2f} {leg.expiry} x{leg.ratio_qty}  {leg.symbol}"
-        )
-    print(
-        f"{proposal.credit_debit} ${proposal.net_premium:.2f}/spread  "
-        f"max_profit=${proposal.max_profit:.2f}  max_loss=${proposal.max_loss:.2f}"
-    )
-    print(f"rationale: {proposal.rationale}")
-    print()
-
     async with AlpacaMcpClient() as mcp:
-        print("=== Risk gates ===")
         account = await account_state(mcp)
+
+        print("=== Options structuring ===")
+        proposal = await propose_trade(
+            signal,
+            equity=account["equity"],
+            max_loss_budget=config.MAX_LOSS_PCT_OF_EQUITY_PER_TRADE * account["equity"],
+            remaining_aggregate_budget=config.MAX_AGGREGATE_RISK_PCT_OF_EQUITY * account["equity"],
+        )
+        if proposal is None:
+            print("Model decided no trade is warranted for this ticker today.")
+            return
+
+        print(f"strategy={proposal.strategy} legs={len(proposal.legs)} qty={proposal.quantity}")
+        for leg in proposal.legs:
+            print(
+                f"  {leg.side:4s} {leg.right:4s} {leg.strike:>8.2f} {leg.expiry} x{leg.ratio_qty}  {leg.symbol}"
+            )
+        print(
+            f"{proposal.credit_debit} ${proposal.net_premium:.2f}/spread  "
+            f"max_profit=${proposal.max_profit:.2f}  max_loss=${proposal.max_loss:.2f}"
+        )
+        print(f"rationale: {proposal.rationale}")
+        print()
+
+        print("=== Risk gates ===")
         leg_md = await leg_market_data(mcp, proposal)
         result = risk_gates.evaluate(
             proposal,

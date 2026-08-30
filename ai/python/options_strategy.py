@@ -49,6 +49,8 @@ PROPOSE_TRADE_FUNCTION = {
             "strategy": {
                 "type": "string",
                 "enum": [
+                    "long_call",
+                    "long_put",
                     "bull_put_spread",
                     "bear_call_spread",
                     "iron_condor",
@@ -90,7 +92,12 @@ PROPOSE_TRADE_FUNCTION = {
             },
             "max_profit": {
                 "type": "number",
-                "description": "total max profit across `quantity` spreads, in dollars",
+                "description": (
+                    "total max profit across `quantity` contracts/spreads, in dollars. "
+                    "For long_call/long_put this is not a hard cap (a long call's upside "
+                    "isn't capped) - report a reasonable projected estimate at a plausible "
+                    "price target instead."
+                ),
             },
             "max_loss": {
                 "type": "number",
@@ -127,9 +134,17 @@ def _to_openai_tools(mcp_schemas: list[dict]) -> list[dict]:
     ]
 
 
-def _system_prompt(signal: SignalResult) -> str:
+def _system_prompt(
+    signal: SignalResult,
+    *,
+    equity: float,
+    max_loss_budget: float,
+    remaining_aggregate_budget: float,
+) -> str:
     return f"""You are an options strategist for an autonomous trading agent on a
-${config.STARTING_EQUITY:,.0f} Alpaca paper account.
+${config.STARTING_EQUITY:,.0f} Alpaca paper account. Its goal is maximizing
+total account return - not just consistency - so prefer structures with
+real upside potential over ones that cap your own profit.
 
 Today's date is {signal.run_date}. Do not rely on any date, price, or strike
 you recall from training - the option chain tools below always return the
@@ -145,18 +160,39 @@ Report:
 {signal.full_report[:6000]}
 
 Your job: decide whether and how to express this view as a defined-risk
-options structure, using LIVE market data you fetch yourself via the
-provided tools (get_option_chain, get_option_snapshot, get_option_contracts,
-get_asset, get_account_info, get_all_positions, get_clock). Do not assume
-prices or strikes - always fetch first.
+options structure (max loss known and bounded upfront - never undefined
+risk), using LIVE market data you fetch yourself via the provided tools
+(get_option_chain, get_option_snapshot, get_option_contracts, get_asset,
+get_account_info, get_all_positions, get_clock). Do not assume prices or
+strikes - always fetch first.
 
-Guidance (hard limits are enforced separately after you propose - stay
-within these as a target, but a downstream risk gate is the real
+Risk budget for this trade (a hard ceiling - a downstream risk gate will
+reject anything over these regardless of your reasoning, so treat them as
+real limits, not suggestions):
+- Current account equity: ${equity:,.0f}
+- Max loss you may take on this single trade: ${max_loss_budget:,.0f}
+- Max additional loss available across all open positions right now (this
+  trade plus everything already open): ${remaining_aggregate_budget:,.0f}
+Size `quantity` using your own judgment within these ceilings - use more of
+the budget for high-confidence signals, less for weaker ones. Do not just
+default to the maximum every time, and do not exceed either number.
+
+Guidance (numeric limits below are enforced separately after you propose -
+stay within these as a target, but a downstream risk gate is the real
 enforcement, not this prompt):
-- direction BUY -> prefer a bull put spread (sell OTM put, buy further OTM
-  put) or, on strong conviction, a bull call spread.
-- direction SELL -> prefer a bear call spread, or a bear put spread on
-  strong conviction.
+- direction BUY -> prefer long_call: buy a call outright. Max loss is
+  capped at the premium you pay (known upfront), but max profit is not
+  artificially capped the way a spread's is - this is the preferred
+  structure for capturing a high-conviction directional view.
+- direction SELL -> prefer long_put, same reasoning in the other direction.
+- Prefer near-the-money to slightly out-of-the-money strikes for a good
+  leverage-vs-probability-of-profit balance. Avoid far-OTM, very-low-delta
+  "lottery ticket" strikes - they have a high chance of expiring worthless
+  even when the direction call is right.
+- A credit/debit spread (bull_put_spread, bear_call_spread, bull_call_spread,
+  bear_put_spread) remains available if you judge a hedged, lower-cost
+  structure is better for a specific setup (e.g. very high IV making long
+  options expensive) - it's not wrong, just not the default anymore.
 - direction HOLD, or when you judge conviction too weak/chain too illiquid
   for a directional trade -> consider an iron condor if IV looks rich, or
   propose no trade at all (call propose_trade with quantity 0 and explain
@@ -164,7 +200,8 @@ enforcement, not this prompt):
 - Target days-to-expiration in the {config.TARGET_DTE_LOW}-{config.TARGET_DTE_HIGH} range.
 - Prefer strikes with open interest >= {config.MIN_OPEN_INTEREST} and tight bid/ask spreads.
 - This is a single-ticker decision; do not consider portfolio-level
-  position limits (a separate system checks those).
+  position limits beyond the budget numbers above (a separate system checks
+  the rest).
 - Your context window is limited. When calling get_option_chain, always pass
   a narrow strike_price_gte/strike_price_lte range (a handful of strikes
   around the current price) and a specific expiration_date or tight
@@ -176,8 +213,10 @@ from get_option_chain/get_option_contracts for that strike/expiry/right -
 never construct the symbol string yourself.
 
 When you have fetched what you need and decided, call propose_trade exactly
-once with your final structure. Every leg quantity must balance (equal buy
-and sell contract counts) - no naked legs."""
+once with your final structure. A long_call/long_put is a single buy leg -
+no offsetting sell leg needed. If you do propose a spread, every leg
+quantity must balance (equal buy and sell contract counts) - no naked short
+legs without an offsetting long leg."""
 
 
 async def _chat_completion(
@@ -246,7 +285,13 @@ def _extract_symbols(name: str, result: dict) -> set[str]:
     return set()
 
 
-async def propose_trade(signal: SignalResult) -> TradeProposal | None:
+async def propose_trade(
+    signal: SignalResult,
+    *,
+    equity: float,
+    max_loss_budget: float,
+    remaining_aggregate_budget: float,
+) -> TradeProposal | None:
     """Returns None if the model decides no trade is warranted (quantity 0).
 
     `propose_trade` is withheld from the tool list until the model has made
@@ -267,7 +312,15 @@ async def propose_trade(signal: SignalResult) -> TradeProposal | None:
             )
 
         messages: list[dict] = [
-            {"role": "system", "content": _system_prompt(signal)},
+            {
+                "role": "system",
+                "content": _system_prompt(
+                    signal,
+                    equity=equity,
+                    max_loss_budget=max_loss_budget,
+                    remaining_aggregate_budget=remaining_aggregate_budget,
+                ),
+            },
             {
                 "role": "user",
                 "content": f"Structure a trade (or decide not to) for {signal.ticker}.",

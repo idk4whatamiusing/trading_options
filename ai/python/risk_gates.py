@@ -22,6 +22,15 @@ def _matched_spread(proposal: TradeProposal) -> GateOutcome:
 
     buys = [leg for leg in proposal.legs if leg.side == "buy"]
     sells = [leg for leg in proposal.legs if leg.side == "sell"]
+
+    # A long-only position (one or more bought legs, no short leg at all) is
+    # still defined-risk: max loss is the premium paid, already known upfront
+    # and checked separately by _max_loss_per_trade. It doesn't need an
+    # offsetting short leg the way a spread does - that's what makes it
+    # different from a naked short, not from a "real" defined-risk trade.
+    if buys and not sells:
+        return GateOutcome(name, True, "long-only position, max loss capped at premium paid")
+
     if not buys or not sells:
         return GateOutcome(
             name, False, "naked position: every short leg needs an offsetting long leg"
