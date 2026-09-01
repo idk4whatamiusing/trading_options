@@ -5,6 +5,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig =
   process.env.BUILD_TARGET === "export"
     ? { output: "export", images: { unoptimized: true } }
-    : { output: "standalone" };
+    : {
+        output: "standalone",
+        images: {
+          remotePatterns: [
+            { protocol: "https", hostname: "i.pravatar.cc" },
+            { protocol: "https", hostname: "images.unsplash.com" },
+          ],
+        },
+      };
 
 export default nextConfig;
