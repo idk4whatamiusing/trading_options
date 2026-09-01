@@ -36,7 +36,16 @@ class AlpacaMcpClient:
     async def connect(self) -> None:
         params = StdioServerParameters(
             command="uvx",
-            args=["alpaca-mcp-server"],
+            # Pinned, not just "alpaca-mcp-server": every connect() spawns a
+            # fresh `uvx` resolution (this runs on every cycle, including
+            # unattended scheduled ones), and an unpinned invocation silently
+            # picks up whatever the vendor just published - which broke
+            # outright when a newer fastmcp release removed
+            # fastmcp.tools.tool.ToolResult that alpaca-mcp-server's install
+            # depends on. 2.3.0 + fastmcp 3.4.7 is the last combination
+            # confirmed working end-to-end (tool listing, real account
+            # calls) against this account.
+            args=["--with", "fastmcp==3.4.7", "alpaca-mcp-server==2.3.0"],
             env={
                 "ALPACA_API_KEY": config.ALPACA_API_KEY,
                 "ALPACA_SECRET_KEY": config.ALPACA_SECRET_KEY,

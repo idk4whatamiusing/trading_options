@@ -74,11 +74,15 @@ WATCHLIST = WATCHLIST_OVERRIDE or DEFAULT_WATCHLIST
 
 # ---- dynamic ticker screener (cycle.py uses this instead of WATCHLIST
 # unless WATCHLIST is explicitly set) ----
-SCREENER_TOP_MOVERS = _env_int("SCREENER_TOP_MOVERS", 10)
-SCREENER_TOP_ACTIVE = _env_int("SCREENER_TOP_ACTIVE", 10)
-SCREENER_MAX_TICKERS = _env_int(
-    "SCREENER_MAX_TICKERS", 6
-)  # same LLM-cost bound as the old fixed list
+# TOP_MOVERS/TOP_ACTIVE only widen the *candidate pool* screener.py picks
+# from - plain Alpaca market-data calls, zero LLM/neuron cost, so there's no
+# reason to keep these small. MAX_TICKERS is a safety ceiling only, not a
+# real target - cycle.py now stops itself the moment it actually hits
+# Cloudflare's daily quota (see _is_quota_exhausted), so a normal day is
+# bounded by real quota exhaustion, not this number.
+SCREENER_TOP_MOVERS = _env_int("SCREENER_TOP_MOVERS", 25)
+SCREENER_TOP_ACTIVE = _env_int("SCREENER_TOP_ACTIVE", 25)
+SCREENER_MAX_TICKERS = _env_int("SCREENER_MAX_TICKERS", 20)
 
 # ---- persistence / plumbing (Phase 2+, unused by scripts/run_once.py) ----
 DB_GRPC_ADDR = os.getenv("DB_GRPC_ADDR", "localhost:8010")

@@ -26,6 +26,24 @@ from models import CycleResult
 from options_strategy import propose_trade
 
 
+def _is_quota_exhausted(exc: Exception) -> bool:
+    """True if `exc` is Cloudflare Workers AI's daily free-quota 429 - checked
+    on both LLM call sites (tradingagents_client's openai SDK errors expose
+    `.status_code` directly; options_strategy's raw httpx errors nest it
+    under `.response.status_code`), with a string-match fallback for any
+    other error shape. Used to stop a cycle early rather than burning
+    through every remaining ticker on guaranteed-to-fail retries once the
+    quota is confirmed gone for the day.
+    """
+    status_code = getattr(exc, "status_code", None)
+    if status_code is None:
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+    if status_code == 429:
+        return True
+    text = str(exc).lower()
+    return "429" in text and "neuron" in text
+
+
 async def run(tickers: list[str] | None = None) -> CycleResult:
     run_date = date.today().isoformat()
     result = CycleResult(
@@ -122,6 +140,12 @@ async def run(tickers: list[str] | None = None) -> CycleResult:
 
             except Exception as exc:  # noqa: BLE001 - one bad ticker shouldn't kill the cycle
                 result.errors.append(f"{ticker}: {exc}")
+                if _is_quota_exhausted(exc):
+                    result.errors.append(
+                        f"stopping cycle early: Cloudflare Workers AI daily quota "
+                        f"exhausted after {result.tickers_evaluated} ticker(s)"
+                    )
+                    break
 
         try:
             final_account = await account_state(mcp)
