@@ -120,12 +120,24 @@ jobs:
             echo "deploy=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          CHANGED=$(git diff --name-only origin/main...HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
-          echo "Changed files: $CHANGED"
+          # workflow_run on main: HEAD == origin/main, so origin/main...HEAD is empty.
+          # Check the actual triggering commit's diff via workflow_run head_sha, fallback to HEAD~1.
+          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
+            git fetch origin ${{ github.event.workflow_run.head_branch }} --depth=2 2>/dev/null || true
+            CHANGED=$(git diff --name-only ${{ github.event.workflow_run.head_sha }}~1...${{ github.event.workflow_run.head_sha }} 2>/dev/null || true)
+            echo "Changed (workflow_run): $CHANGED"
+            if echo "$CHANGED" | grep -qE 'gateway/|workers/|ui/|package\.json|bun\.lock|packages/'; then
+              echo "deploy=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+          echo "Changed (HEAD~1): $CHANGED"
           if echo "$CHANGED" | grep -qE '^(gateway/|workers/|ui/|package\.json|bun\.lock|packages/)'; then
             echo "deploy=true" >> $GITHUB_OUTPUT
           else
-            echo "deploy=false" >> $GITHUB_OUTPUT
+            # Fallback: on main with successful CI, always deploy to avoid stuck state
+            echo "deploy=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Setup Bun
