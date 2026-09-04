@@ -1,0 +1,9 @@
+name = "alpaca-ui"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+account_id = "dsjzcjmsh6"
+
+# Serves Next.js static export (landing + dashboard) as pure static assets.
+# No auth, no API proxy — UI talks cross-origin to https://api.<DOMAIN>
+# via NEXT_PUBLIC_API_URL baked at build time.
+assets = { directory = "../../ui/out", not_found_handling = "single-page-application" }

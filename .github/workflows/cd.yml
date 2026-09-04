@@ -122,7 +122,7 @@ jobs:
           fi
           CHANGED=$(git diff --name-only origin/main...HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
           echo "Changed files: $CHANGED"
-          if echo "$CHANGED" | grep -qE '^(gateway/|ui/|package\.json|bun\.lock|packages/)'; then
+          if echo "$CHANGED" | grep -qE '^(gateway/|workers/|ui/|package\.json|bun\.lock|packages/)'; then
             echo "deploy=true" >> $GITHUB_OUTPUT
           else
             echo "deploy=false" >> $GITHUB_OUTPUT
@@ -142,11 +142,24 @@ jobs:
         if: steps.cf-check.outputs.deploy == 'true'
         run: cd gateway && npm ci --legacy-peer-deps
 
-      - name: Deploy Cloudflare Worker
+      - name: Deploy gateway Worker
         if: steps.cf-check.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: gateway
+          command: deploy
+
+      - name: Install new UI worker deps
+        if: steps.cf-check.outputs.deploy == 'true'
+        run: cd workers/ui && npm ci
+
+      - name: Deploy new UI Worker
+        if: steps.cf-check.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/ui
           command: deploy
