@@ -136,6 +136,14 @@ STOP_LOSS_PCT = _env_float("STOP_LOSS_PCT", -0.50)  # close at -50% unrealized
 MIN_DTE_BEFORE_FORCE_CLOSE = _env_int("MIN_DTE_BEFORE_FORCE_CLOSE", 3)
 
 # ---- MCP ----
+# The alpaca-mcp-server subprocess can die silently mid-cycle (observed live:
+# no crash/error logged, no OOM - it was just gone from `docker top`) and
+# without a timeout, an await on its stdio pipe then hangs forever with no
+# error surfaced at all. These bound every MCP round-trip so a dead
+# subprocess turns into a catchable, logged error instead of an indefinite
+# hang - see AlpacaMcpClient's timeout+reconnect-once handling.
+MCP_CONNECT_TIMEOUT_S = _env_float("MCP_CONNECT_TIMEOUT_S", 60.0)
+MCP_CALL_TIMEOUT_S = _env_float("MCP_CALL_TIMEOUT_S", 45.0)
 ALPACA_TOOLSETS = "account,trading,assets,options-data,stock-data"
 READ_ONLY_TOOL_WHITELIST = [
     "get_account_info",
