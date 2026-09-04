@@ -1,86 +1,72 @@
-# Meridian Stack template
+# Options Alpha Agents
 
-Scaffold a polyglot full-stack monorepo: **Next.js (SSR)** frontend, **Rust (axum)**
-API with REST + GraphQL + SSE + WebSocket + pluggable cache, **Gleam** realtime
-service with Redis pub/sub, **Python (FastAPI)** AI service. Google OAuth + a dev
-login. Auth lives at the edge in a **Cloudflare Worker** (KV sessions) or in the
-**API (Redis sessions)** on AWS. GitHub Actions CI/CD + Terraform (AWS flavor)
-included.
+Build an autonomous AI trading agent that generates P&L using Alpaca's paper trading platform. The agent runs a fully autonomous signal → structure → gate → execute → manage pipeline on Alpaca's Trading API, MCP server, and CLI — all in the paper trading environment with a $100,000 starting balance.
 
 ## Quickstart
 
-    npm create meridian-stack@latest -- --name <dir> --variant cloudflare  # or aws/both; -y skips prompts
-    npm create meridian-stack@latest cloudflare my-app
-    cd <name>
-    docker compose up -d        # postgres + redis (dev infra only)
-    bun run dev:ui              # Next.js  :3000   (terminal 1)
-    bun run dev:api             # Rust     :8000   (terminal 2)
-    bun run dev:realtime        # Gleam    :8001   (terminal 3)
-    go run ./api & cargo run --manifest-path db/Cargo.toml &   # api + db
+```bash
+# Clone and configure
+cp .env.example .env
+# set ALPACA_API_KEY, ALPACA_SECRET_KEY, CF_ACCOUNT_ID, CF_API_TOKEN
 
-Open http://localhost:3000/dashboard, click **dev login** - it creates a session
-and you'll see live SSE events.
+# Run the full stack (dev)
+docker compose up -d          # postgres + redis
+bun run dev:api               # Go GraphQL API :8000
+cargo run --manifest-path db/Cargo.toml &   # Rust gatekeeper :8010
+bun run dev:realtime          # Gleam events :8001
+bun run dev:ai                # Python AI + gRPC bridge
+bun run dev:ui                # Next.js dashboard :3000
 
-## Layout
+# Or run the trading cycle directly
+bun run --workspace ai -- python -m ai.python.main
+```
 
-| Path | Tech | What it is |
-|---|---|---|
-| `ui/` | Next.js 16 + Tailwind 4 | SSR frontend; `output: export` on the Cloudflare flavor |
-| `api/` | Go (chi + gqlgen + go-redis) | the public GraphQL API (`/api/graphql`, graphql-transport-ws subscriptions), Google OAuth, sessions; owns ALL Redis: sessions, 7-day caches, semantic prompt cache, chat-history fast path |
-| `db/` | Rust (tonic + SQLx) | private Postgres gatekeeper :8010 — users, chat sessions/history, RAG documents; migrations on boot; healthz :8011 |
-| `realtime/` | Gleam + mist | events fanout (SSE/WS + broker), Redis pub/sub for horizontal scale; notified by api on broadcast |
-| `ai/` | Go + Python hybrid | ALL AI work: gRPC Ai server (CF Workers AI / Bedrock / OpenAI streaming chat) + Python RAG sidecar (pgvector top-k, per-user semantic cache); support = local TinyLlama Q4 via llama.cpp (knowledge-base-only, no external provider) |
-| `packages/proto` | protobuf | db/realtime/ai contracts (generated code committed) |
-| `packages/shared` | TypeScript | raw `fetch` + `graphql-ws` client used by ui |
-| `gateway` (CF flavor only) | Hono Worker | dev-login / sessions in KV, proxies `/api/*` + `/events` to the backend with `x-user-id` + `x-user-email` + `x-backend-secret`, serves the web export |
-| `compose.prod.yaml` (AWS flavor) | Caddy + Docker | one-command prod stack with auto-TLS on `*.YOUR-IP.sslip.io` |
+## The Agent Pipeline
 
-## Endpoints
+1. **Signal** — `TradingAgents` (LangGraph multi-agent debate) generates BUY/SELL/HOLD per ticker from the most-active/gainers screener (optionable names only).
+2. **Structure** — Claude (Cloudflare Workers AI) structures the trade using the live option chain via Alpaca MCP: strategy, legs, strikes, expiries, max profit/loss.
+3. **Gates** — 12 deterministic risk gates (defined-risk-only, max loss, aggregate risk, DTE bounds, liquidity, buying power, circuit breakers, kill switch) must all pass before execution.
+4. **Execute** — `place_option_order` is called via Alpaca MCP stdio (write tools are never exposed to the LLM).
+5. **Manage** — Open positions auto-close at +100% take-profit, −50% stop-loss, or ≤3 DTE to expiry.
 
-- GET  `:8000/api/health`                API + DB + cache status
-- POST `:8000/api/auth/dev-login`        dev session -> Set-Cookie
-- GET  `:8000/api/auth/google`           Google OAuth login (+ `/callback` verifies the id_token against Google JWKS)
-- GET  `:8000/api/me`                    session user (gateway header on CF, Redis cookie on AWS)
-- POST `:8000/api/users/from-oauth`      upserts a Google-verified user into `users` (called by the CF gateway; `x-backend-secret` gated)
-- POST `:8000/api/graphql`               GraphQL (GraphiQL at GET) - `me`, `users`, `health`
-- GET  `:8000/api/events`                SSE stream (also proxied by the CF gateway)
-- POST `:8000/api/broadcast`             `x-backend-secret: <BACKEND_SECRET>` + JSON `{"message":"hi"}` -> SSE fans out
-- WS   `:8000/api/ws`                    echo + broadcast
-- GET  `:8001/events` / WS `:8001/ws` / POST `:8001/broadcast`  (Gleam realtime)
+## Risk Gates
 
-All client paths use the `/api/*` prefix so the same URLs work on both flavors:
-on Cloudflare the gateway intercepts `/api/*` and forwards them (with the session user) to the backend.
+| Gate                           | Threshold                   |
+| ------------------------------ | --------------------------- |
+| `defined_risk_only`            | No naked shorts             |
+| `max_loss_per_trade`           | ≤ 8% of equity              |
+| `max_aggregate_risk`           | ≤ 35% aggregate             |
+| `max_concurrent_positions`     | ≤ 10                        |
+| `max_positions_per_underlying` | ≤ 2 per ticker              |
+| `dte_bounds`                   | 3–30 DTE                    |
+| `liquidity_floor`              | Min OI; spread ≤ 5% of mid  |
+| `max_contracts_per_leg`        | ≤ 50/leg                    |
+| `buying_power`                 | ≤ 20% of options BP         |
+| `daily_circuit_breaker`        | Day P&L > −3%               |
+| `rolling_5d_circuit_breaker`   | 5-day P&L > −6%             |
+| `kill_switch`                  | Drawdown < −15% halts agent |
 
-## Auth model
+## Stack
 
-Session = random id -> JSON/session in KV (Cloudflare gateway) or Redis (API on AWS).
-The gateway validates the cookie, then forwards `x-user-id` + `x-user-email` +
-`x-backend-secret` to the backend (backend never sees cookies). On AWS the API
-validates the cookie against Redis directly. Two login paths: **Google OAuth**
-(id_token verified against the Google JWKS -
-`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI`) and **dev login**
-(any email, for local dev only). OAuth and dev logins upsert the user into the
-`users` table (uniqued by email).
+| Layer    | Tech                                            |
+| -------- | ----------------------------------------------- |
+| Frontend | Next.js 16 + Tailwind 4 dashboard               |
+| API      | Go (chi + gqlgen) GraphQL :8000                 |
+| DB       | Rust (tonic + SQLx) Postgres :8010              |
+| Realtime | Gleam + Redis pub/sub :8001                     |
+| AI       | Python (FastAPI) + Cloudflare Workers AI        |
+| Trading  | Alpaca MCP server (stdio) + paper trading       |
+| Deploy   | Docker compose · AWS (EC2 + Caddy) · Cloudflare |
 
-## Config
+## Hackathon Requirements
 
-Copy `.env.example` files and set what applies. CI/CD: `ci.yml` runs web/api/realtime/ai
-checks on every PR; the Cloudflare flavor also deploys the gateway worker on push to
-`main`; the AWS flavor SSH-deploys `compose.prod.yaml` (secrets: `CLOUDFLARE_API_TOKEN`,
-`CLOUDFLARE_ACCOUNT_ID`, or `SSH_HOST`/`SSH_USER`/`SSH_KEY`). AWS infrastructure via
-`infra/` (Terraform: EC2 + SG + EIP + docker install). Biggest knobs:
-- `CACHE_BACKEND` (`redis` default | `kv`) on the API
-- `NEXT_PUBLIC_API_URL` in `ui` (empty = same-origin; set `http://localhost:8000` in AWS dev)
-- `API_ORIGIN` + `BACKEND_SECRET` in the gateway's `.dev.vars` / prod vars
+- ✅ Autonomous agents — TradingAgents multi-agent debate + autonomous daily cycle
+- ✅ MCP — Alpaca MCP server via stdio (read-only whitelist + guarded write tools)
+- ✅ Options trading — long calls/puts, spreads, condors, all options-based
+- ✅ Paper trading — `ALPACA_PAPER_TRADE=true`, $100,000 starting balance
 
-## Deploy
+## Docs
 
-Pick your flavor's `DEPLOY.md`: `cloudflare/` or `aws/` were copied into your
-project root during scaffolding.
-
-## Deliberately deferred (v2+)
-
-GraphQL (async-graphql - your Cartis/FitMentor apps show the schema is product-shaped),
-GitHub Actions CI/CD, Terraform, real OAuth, OpenNext SSR on Cloudflare,
-realtime Redis pub/sub / Durable Objects fanout. Each is a ~half-day lift on top
-of this foundation.
+- `WRITEUP.md` — one-page write-up covering AI logic, risk gates, and Alpaca infrastructure
+- `DEPLOY.md` — deployment instructions (AWS + Cloudflare)
+- `ui/` — Next.js dashboard (live positions, trades, risk gate events, account snapshots)

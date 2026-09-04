@@ -129,11 +129,20 @@ async def run(tickers: list[str] | None = None) -> CycleResult:
                     continue
 
                 try:
-                    order = await place(mcp, proposal)
+                    result_order = await place(mcp, proposal)
+                    order = result_order["order"]
+                    alpaca_order_id = extract_order_id(order)
                     persistence.update_trade_status(
-                        trade_id, "open", alpaca_order_id=extract_order_id(order)
+                        trade_id, "open", alpaca_order_id=alpaca_order_id
                     )
-                    result.trades_placed += 1
+                    if result_order.get("confirmed"):
+                        result.trades_placed += 1
+                    else:
+                        result.errors.append(
+                            f"{ticker}: order placed but not confirmed after "
+                            f"{result_order.get('polls')} polls"
+                        )
+                        result.trades_blocked += 1
                 except Exception as exc:  # noqa: BLE001
                     persistence.update_trade_status(trade_id, "failed")
                     result.errors.append(f"{ticker}: execution failed: {exc}")

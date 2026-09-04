@@ -93,6 +93,42 @@ def test_defined_risk_passes_long_only_position():
     assert _outcome(_evaluate(proposal), "defined_risk_only").passed
 
 
+def test_defined_risk_passes_long_straddle():
+    """A long straddle (buy ATM call + buy ATM put) is buy-only = defined risk."""
+    proposal = _baseline_proposal()
+    proposal.strategy = "long_straddle"
+    proposal.legs = [_leg("buy", "call", 500), _leg("buy", "put", 500)]
+    proposal.credit_debit = "debit"
+    proposal.max_profit = 1000.0
+    proposal.max_loss = 200.0
+    assert _outcome(_evaluate(proposal), "defined_risk_only").passed
+
+
+def test_defined_risk_passes_long_strangle():
+    """A long strangle (buy OTM call + buy OTM put) is buy-only = defined risk."""
+    proposal = _baseline_proposal()
+    proposal.strategy = "long_strangle"
+    proposal.legs = [_leg("buy", "call", 520), _leg("buy", "put", 480)]
+    proposal.credit_debit = "debit"
+    proposal.max_profit = 1000.0
+    proposal.max_loss = 200.0
+    assert _outcome(_evaluate(proposal), "defined_risk_only").passed
+
+
+def test_defined_risk_passes_iron_condor():
+    """An iron condor is a matched sell spread + buy spread = defined risk."""
+    proposal = _baseline_proposal()
+    proposal.strategy = "iron_condor"
+    proposal.legs = [
+        _leg("sell", "call", 520), _leg("buy", "call", 530),
+        _leg("sell", "put", 480), _leg("buy", "put", 470),
+    ]
+    proposal.credit_debit = "credit"
+    proposal.max_profit = 100.0
+    proposal.max_loss = 400.0
+    assert _outcome(_evaluate(proposal), "defined_risk_only").passed
+
+
 def test_defined_risk_fails_on_unmatched_quantities():
     proposal = _baseline_proposal()
     proposal.legs[0].ratio_qty = 2

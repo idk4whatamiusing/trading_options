@@ -4,6 +4,9 @@ Must only be invoked after risk_gates.evaluate() has returned an all-pass
 GateResult. Claude's structuring step (options_strategy.py) never sees this
 tool at all - this module is the sole caller, driven entirely by plain
 Python, not by any LLM decision at execution time.
+
+After placing, `place()` confirms the order landed by polling
+`get_all_positions` via order_confirm.py — closing the fire-and-forget gap.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ import uuid
 
 from alpaca_mcp_client import AlpacaMcpClient
 from models import TradeProposal
+from order_confirm import confirm_order
 
 
 def _limit_price(proposal: TradeProposal) -> str:
@@ -42,4 +46,6 @@ async def place(mcp: AlpacaMcpClient, proposal: TradeProposal) -> dict:
     }
     order_args = {k: v for k, v in order_args.items() if v is not None}
 
-    return await mcp.call_tool("place_option_order", order_args)
+    order = await mcp.call_tool("place_option_order", order_args)
+    confirmation = await confirm_order(mcp, proposal)
+    return {"order": order, **confirmation}

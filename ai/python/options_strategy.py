@@ -56,6 +56,8 @@ PROPOSE_TRADE_FUNCTION = {
                     "iron_condor",
                     "bull_call_spread",
                     "bear_put_spread",
+                    "long_straddle",
+                    "long_strangle",
                 ],
             },
             "legs": {
@@ -189,14 +191,22 @@ enforcement, not this prompt):
   leverage-vs-probability-of-profit balance. Avoid far-OTM, very-low-delta
   "lottery ticket" strikes - they have a high chance of expiring worthless
   even when the direction call is right.
+- A long straddle (ATM call + ATM put) or long strangle (OTM call +
+  OTM put) is a defined-risk, direction-neutral volatility-expansion
+  play — both are buy-only, so max loss is capped at the premium
+  paid. Use a straddle when you expect a large move but not the
+  direction; use a strangle for a cheaper entry with a wider break-even.
 - A credit/debit spread (bull_put_spread, bear_call_spread, bull_call_spread,
   bear_put_spread) remains available if you judge a hedged, lower-cost
   structure is better for a specific setup (e.g. very high IV making long
   options expensive) - it's not wrong, just not the default anymore.
 - direction HOLD, or when you judge conviction too weak/chain too illiquid
-  for a directional trade -> consider an iron condor if IV looks rich, or
-  propose no trade at all (call propose_trade with quantity 0 and explain
-  why in rationale).
+  for a directional trade -> consider an iron condor if IV looks rich,
+  or a long straddle (ATM call + ATM put) if you expect a large
+  move in either direction, or a long strangle (OTM call + OTM put)
+  for a cheaper volatility-expansion alternative. Propose no trade
+  at all (call propose_trade with quantity 0 and explain why) if
+  neither a directional nor a volatility play is warranted.
 - Target days-to-expiration in the {config.TARGET_DTE_LOW}-{config.TARGET_DTE_HIGH} range.
 - Prefer strikes with open interest >= {config.MIN_OPEN_INTEREST} and tight bid/ask spreads.
 - This is a single-ticker decision; do not consider portfolio-level

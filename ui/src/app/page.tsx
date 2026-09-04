@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Anton } from "next/font/google";
+import Link from "next/link";
 import {
   Accordion,
   AccordionContent,
@@ -22,18 +23,21 @@ function Hero() {
       {/* Top band: nav */}
       <div className="flex items-stretch border-b border-white/10">
         <div className="flex-1 flex items-center px-6 py-4 gap-10">
-          <span className="font-black text-2xl tracking-tight uppercase">Bluepeak</span>
+          <span className="font-black text-2xl tracking-tight uppercase">Alpaca</span>
           <nav className="hidden md:flex items-center gap-1 text-xs font-mono">
             <span className="bg-white text-[#281CAC] px-4 py-1.5 rounded-sm">Home</span>
             <span className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
-              About
+              How It Works
             </span>
             <span className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
-              Properties
+              Risk Gates
             </span>
-            <span className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
-              Review
-            </span>
+            <Link
+              href="/dashboard"
+              className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition"
+            >
+              Dashboard
+            </Link>
             <span className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
               FAQ
             </span>
@@ -41,7 +45,7 @@ function Hero() {
         </div>
         <div className="hidden lg:flex items-stretch">
           <div className="flex flex-col justify-center px-6 border-l border-white/10">
-            {["Business", "Agency", "Organization", "Startup", "Company"].map((item) => (
+            {["Signal", "Structure", "Risk Gates", "Execute", "Manage"].map((item) => (
               <div
                 key={item}
                 className="flex items-center justify-between gap-8 py-1 text-xs font-mono text-white/80"
@@ -52,9 +56,12 @@ function Hero() {
             ))}
           </div>
           <div className="flex items-center px-4 border-l border-white/10">
-            <span className="bg-white text-[#232323] px-6 py-2 text-xs font-mono cursor-pointer">
-              Business
-            </span>
+            <Link
+              href="/dashboard"
+              className="bg-white text-[#232323] px-6 py-2 text-xs font-mono cursor-pointer"
+            >
+              Paper Trading
+            </Link>
           </div>
         </div>
       </div>
@@ -63,16 +70,16 @@ function Hero() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] min-h-[300px]">
         <div className="px-6 py-10 lg:py-12 flex items-end max-w-[1280px]">
           <h1 className="text-[clamp(2.75rem,6.5vw,5.5rem)] leading-[0.9] uppercase tracking-[-0.02em] text-balance max-w-[13ch]">
-            An Investment
+            An Autonomous
             <br />
-            Firm Built Future
+            Agent That Trades
           </h1>
         </div>
         <div className="bg-[#232323] flex items-center px-6 py-8">
           <p className="text-[13px] font-sans leading-[1.6] tracking-[-0.01em] text-white/85 max-w-[28ch] text-pretty">
-            Presenting our Strategic Growth Fund, a dynamic investment vehicle designed to optimize
-            returns while minimizing risk. Built on a foundation of thorough market analysis and
-            innovative strategies
+            An autonomous agent for Alpaca paper trading. TradingAgents finds direction, a second
+            LLM structures the spread against the live chain, and deterministic gates veto unsafe
+            trades.
           </p>
         </div>
       </div>
@@ -91,32 +98,27 @@ function Hero() {
         </div>
         <div className="flex flex-col">
           <div className="bg-[#281CAC] px-6 py-6 border-b border-white/10">
-            <h3 className="text-xl uppercase tracking-[-0.015em] mb-3">Live Investment Count</h3>
+            <h3 className="text-xl uppercase tracking-[-0.015em] mb-3">Live Pipeline Count</h3>
             <div className="space-y-1">
-              {[
-                "GPS",
-                "RADAR",
-                "ELECTRICAL",
-                "COUNTERMEASURES",
-                "ENVIRONMENTAL",
-                "COMMUNICATIONS",
-              ].map((item, i) => (
-                <div
-                  key={item}
-                  className="flex items-center justify-between text-xs font-mono text-white/80 py-1"
-                >
-                  <span>{`0${i + 1}. ${item}`}</span>
-                  <span className="text-white/40">•</span>
-                </div>
-              ))}
+              {["SIGNAL", "STRUCTURE", "RISK GATES", "EXECUTE", "MANAGE", "SNAPSHOT"].map(
+                (item, i) => (
+                  <div
+                    key={item}
+                    className="flex items-center justify-between text-xs font-mono text-white/80 py-1"
+                  >
+                    <span>{`0${i + 1}. ${item}`}</span>
+                    <span className="text-white/40">•</span>
+                  </div>
+                ),
+              )}
             </div>
           </div>
           <div className="bg-[#232323] grid grid-cols-2 divide-x divide-y divide-white/10">
             {[
-              { val: "$2.8B", label: "Assets Under Management" },
-              { val: "65+", label: "Portfolio Companies" },
-              { val: "18", label: "All Over Countries" },
-              { val: "65+", label: "Annual Return" },
+              { val: "$100K", label: "Paper Equity Base" },
+              { val: "10", label: "Max Open Positions" },
+              { val: "5–30", label: "DTE Window (Days)" },
+              { val: "8%", label: "Max Loss Per Trade" },
             ].map((s) => (
               <div key={s.label} className="px-5 py-4">
                 <div className="font-bold text-2xl tracking-[-0.02em] uppercase">{s.val}</div>
@@ -127,9 +129,12 @@ function Hero() {
             ))}
           </div>
           <div className="bg-[#232323] px-5 pb-5">
-            <div className="w-full text-center bg-[#2A2A2A] text-white text-xs font-mono py-3 cursor-pointer hover:bg-[#333] transition">
-              Request Investment Deck
-            </div>
+            <Link
+              href="/dashboard"
+              className="block w-full text-center bg-[#2A2A2A] text-white text-xs font-mono py-3 cursor-pointer hover:bg-[#333] transition"
+            >
+              Open Dashboard ↗
+            </Link>
           </div>
         </div>
       </div>
@@ -144,16 +149,16 @@ function About() {
       <div className="grid md:grid-cols-[200px_1fr] gap-8 mb-16">
         <div className="flex items-start gap-2 pt-2">
           <div className="w-2 h-2 bg-[#281CAC] mt-1 shrink-0" />
-          <span className="text-xs font-mono text-black">About Bluepeak</span>
+          <span className="text-xs font-mono text-black">About Alpaca Agent</span>
         </div>
         <div>
           <h2 className="text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.08] tracking-[-0.015em] max-w-[22ch] text-pretty">
-            Bluepeak partners with ambitious teams to simplify complexity, strengthen your team
-            decision-making &amp; create sustainable growth through strategic expertise.
+            Alpaca Agent pairs TradingAgents signal generation with live options structuring,
+            deterministic risk gates, and isolated execution to trade paper options autonomously.
           </h2>
           <div className="flex flex-wrap items-center gap-6 mt-8">
             <span className="border border-[#E9E9E9] bg-[#F8F8F8] px-6 py-3 text-xs font-mono cursor-pointer hover:bg-[#EEE] transition">
-              More about us
+              How the pipeline works
             </span>
             <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
@@ -173,9 +178,9 @@ function About() {
                 ))}
               </div>
               <div className="text-xs font-mono">
-                <span className="text-gray-500">Trusted by</span>
+                <span className="text-gray-500">Live on</span>
                 <br />
-                <span className="font-bold">175 businesses</span>
+                <span className="font-bold">Alpaca Paper Trading</span>
               </div>
             </div>
           </div>
@@ -185,18 +190,18 @@ function About() {
       <div className="grid md:grid-cols-3 gap-6">
         {[
           {
-            title: "Strategic Thinking",
-            desc: "We help leaders make informed decisions with clear strategies & a long-term perspective on business growth.",
+            title: "Signal",
+            desc: "TradingAgents runs a multi-agent debate (fundamentals, technicals, news) to emit BUY/SELL/HOLD with confidence.",
             indigo: false,
           },
           {
-            title: "Business Expertise",
-            desc: "Our team brings deep experience across finance & operations to help organizations achieve measurable outcomes.",
+            title: "Structure",
+            desc: "A separate LLM fetches the live Alpaca chain via MCP and proposes a defined-risk spread with exact OCC symbols.",
             indigo: true,
           },
           {
-            title: "Trusted Partnership",
-            desc: "We work closely with clients, providing honest guidance and tailored solutions that support lasting success.",
+            title: "Verify",
+            desc: "Deterministic gates check DTE, liquidity, exposure and P&L circuit breakers before any order can execute.",
             indigo: false,
           },
         ].map((card) => (
@@ -207,7 +212,7 @@ function About() {
             }`}
           >
             <div className={`w-8 h-8 ${card.indigo ? "text-white" : "text-[#281CAC]"}`}>
-              {card.title === "Strategic Thinking" && (
+              {card.title === "Signal" && (
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -218,7 +223,7 @@ function About() {
                   <path d="M3 21h18M5 21V7l4-4 4 4v14M13 21V11l4-4 4 4v10" />
                 </svg>
               )}
-              {card.title === "Business Expertise" && (
+              {card.title === "Structure" && (
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -229,7 +234,7 @@ function About() {
                   <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                 </svg>
               )}
-              {card.title === "Trusted Partnership" && (
+              {card.title === "Verify" && (
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -256,20 +261,20 @@ function About() {
   );
 }
 
-/* ─── Section 3: Core Investment ─── */
+/* ─── Section 3: Core Pipeline ─── */
 function CoreInvestment() {
   return (
     <section className="bg-[#FAF7F2] py-20 px-6 md:px-20 overflow-hidden">
       <div className="max-w-[1280px] mx-auto">
         <div className="relative mb-10">
           <h2 className="text-[clamp(3rem,9vw,6.5rem)] leading-[0.88] uppercase tracking-[-0.02em] text-[#0A0A0A] text-balance">
-            Core Investment
+            Core Pipeline
           </h2>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="bg-gradient-to-r from-transparent via-[#FAF7F2]/85 to-transparent px-8 py-4">
               <p className="text-center text-[13px] font-sans leading-[1.6] tracking-[-0.01em] text-[#52525B] max-w-[42ch] text-pretty">
-                Don&apos;t let blank walls waste potential. See how our clients turn empty space
-                into buzz, foot traffic, and business results.
+                Every signal is structured against the live Alpaca chain, checked by twelve
+                deterministic gates, and executed in isolation — no discretionary overrides.
               </p>
             </div>
           </div>
@@ -278,11 +283,13 @@ function CoreInvestment() {
         <div className="space-y-4">
           {[
             {
-              title: "Fintech",
+              title: "Long Calls & Puts",
+              desc: "Long calls/puts capture high-conviction direction with max loss capped at premium paid.",
               img: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=200&fit=crop",
             },
             {
-              title: "Healthcare",
+              title: "Spreads & Condors",
+              desc: "Credit/debit spreads and iron condors balance defined risk against live OI and spread constraints.",
               img: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=200&fit=crop",
             },
           ].map((card) => (
@@ -297,8 +304,7 @@ function CoreInvestment() {
               </div>
               <div className="border-t border-[#2A2A2A] pt-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <p className="text-[13px] font-sans text-white/85 leading-[1.65] tracking-[-0.01em] max-w-[60ch] text-pretty">
-                  Presenting our Strategic Growth Fund, a dynamic investment vehicle designed to
-                  optimize returns while minimizing risk.
+                  {card.desc}
                 </p>
                 <div className="w-full md:w-[180px] h-[96px] rounded-md overflow-hidden shrink-0 relative">
                   <Image src={card.img} alt="" fill className="object-cover" unoptimized />
@@ -312,32 +318,29 @@ function CoreInvestment() {
   );
 }
 
-/* ─── Section 4: Leadership Board ─── */
-function LeadershipBoard() {
+/* ─── Section 4: Risk Gates ─── */
+function RiskGates() {
   const cards = [
     {
-      name: "Stephen Scott",
-      role: "Managing Partner",
-      quote:
-        "Incredible attention to detail and a true understanding of our vision. The results exceeded our expectations.",
+      name: "Defined Risk",
+      role: "Gate 01 — Structure",
+      quote: "Matched long/short legs or premium-capped longs only; naked shorts rejected.",
       color: "bg-[#F4D738]",
       rotate: "-rotate-6",
       z: "z-10",
     },
     {
-      name: "Olivia Evans",
-      role: "General Partner",
-      quote:
-        "Bold, modern and timely. BluePeak brought our brand to life with clarity and purpose.",
+      name: "Exposure Caps",
+      role: "Gates 02–05 — Portfolio",
+      quote: "8% per trade, 35% aggregate, 10 concurrent, 2 per ticker max.",
       color: "bg-[#FF5226]",
       rotate: "rotate-0",
       z: "z-20",
     },
     {
-      name: "Arthur Ellis",
-      role: "Founding Partner",
-      quote:
-        "A seamless experience from start to finish. Creative, reliable and highly professional.",
+      name: "Quality & Safety",
+      role: "Gates 06–12 — Market",
+      quote: "DTE 5–30, OI>100, spread<15% mid, BP checks, daily -3% / 5d -6% breakers.",
       color: "bg-[#00B653]",
       rotate: "rotate-0",
       z: "z-30",
@@ -350,17 +353,18 @@ function LeadershipBoard() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-16">
           <div>
             <h2 className="text-[clamp(2rem,4vw,3rem)] leading-[0.92] uppercase tracking-[-0.02em] text-balance">
-              Leadership
+              Risk
               <br />
-              Board
+              Gates
             </h2>
             <p className="text-[13px] font-sans text-[#52525B] mt-3 max-w-[40ch] leading-[1.6] tracking-[-0.01em] text-pretty">
-              Visionary partners and industry leaders guiding category-defining companies.
+              Twelve deterministic checks veto any unsafe trade before execution — no LLM can
+              override them.
             </p>
           </div>
           <p className="text-[13px] font-sans text-[#52525B] md:text-right max-w-[32ch] leading-[1.6] tracking-[-0.01em] text-pretty">
-            A dedicated team shaped by strategic foresight, operational excellence, and lasting
-            impact.
+            From defined-risk structure to liquidity floors and portfolio circuit breakers, every
+            gate is logged.
           </p>
         </div>
 
@@ -429,23 +433,23 @@ function Portfolio() {
   const tiles = [
     {
       logo: "LOGO",
-      title: "Creative Tech",
-      desc: "Empower global creators with next-generation design systems, AI-driven media production, and modern web engines.",
+      title: "CALL — Long Call",
+      desc: "Bullish, premium-capped; max loss is debit paid, upside open to price target.",
     },
     {
       logo: "makers°",
-      title: "Data Availability",
-      desc: "Building scalable, high-throughput modular blockchain architectures for decentralized application ecosystems.",
+      title: "PUT — Long Put",
+      desc: "Bearish mirror of long call; live IV and OI filter tradability.",
     },
     {
       logo: "NUBIT",
-      title: "Enterprise AI",
-      desc: "Autonomous AI agent orchestration, enterprise context engines, and secure workflow automation.",
+      title: "SPREAD — Bull Put",
+      desc: "Credit spreads with defined max loss; require matched buy/sell legs and quantity balance.",
     },
     {
       logo: "Onbrand",
-      title: "Healthcare",
-      desc: "Pioneering precision medicine platforms, AI diagnostics, and intelligent patient care workflows.",
+      title: "CONDOR — Iron Condor",
+      desc: "Debit/credit wings around range-bound view; DTE 7–21 target, liquidity floor enforced.",
     },
   ];
 
@@ -463,16 +467,16 @@ function Portfolio() {
         </div>
         <div className="bg-[#1E1E1E] text-white p-8 md:p-10 flex-1 flex flex-col justify-center">
           <h2 className="text-[clamp(1.75rem,3vw,2.5rem)] leading-[0.92] uppercase tracking-[-0.015em] mb-4 text-balance">
-            Building The
+            Structure
             <br />
-            Future, Together.
+            Risk, Then Execute.
           </h2>
           <p className="text-[13px] font-sans text-white/85 leading-[1.6] tracking-[-0.01em] max-w-[40ch] mb-6 text-pretty">
-            We partner with ambitious founders and outstanding teams to build category-defining
-            companies that create lasting impact.
+            Signal proposes, structure prices against the live chain, gates enforce limits,
+            execution is isolated and logged.
           </p>
           <span className="border border-white/20 text-white px-6 py-3 text-[11px] font-mono uppercase tracking-[0.02em] inline-block w-fit cursor-pointer hover:bg-white/10 transition">
-            Partner With Us ↗
+            Open Positions ↗
           </span>
         </div>
       </div>
@@ -503,32 +507,32 @@ function WhyChooseUs() {
   const rows = [
     {
       num: "01",
-      label: "Strategic Partnership",
-      desc: "We go beyond capital by becoming a long-term partner in your growth journey.",
+      label: "Signal Generation",
+      desc: "TradingAgents debates fundamentals/technicals/news and emits BUY/SELL/HOLD with confidence.",
       tag: "Partner",
     },
     {
       num: "02",
-      label: "Deep Industry Expertise",
-      desc: "Our team brings deep sector knowledge and operational experience to the table.",
+      label: "Live Structuring",
+      desc: "Second LLM fetches Alpaca chain via MCP and proposes strikes/expiry with exact OCC symbols.",
       tag: "Expertise",
     },
     {
       num: "03",
-      label: "Founder First Approach",
-      desc: "We back ambitious founders with empathy, trust, and unwavering commitment.",
-      tag: "Founder Focused",
+      label: "Deterministic Gates",
+      desc: "Twelve veto checks — DTE, OI, spread, exposure, BP, and P&L breakers — all logged.",
+      tag: "12 Gates",
     },
     {
       num: "04",
-      label: "Value Creation Focus",
-      desc: "We focus on building scalable, sustainable businesses that create lasting impact.",
-      tag: "Long-Term Value",
+      label: "Isolated Execution",
+      desc: "Only the executor holds the place-order tool; structuring cannot place orders by construction.",
+      tag: "Execute",
     },
     {
       num: "05",
-      label: "Global Network & Resources",
-      desc: "Access to our global network, investments, and strategic resources that open doors.",
+      label: "Active Management",
+      desc: "Positions auto-close on +100% take-profit, −50% stop, or DTE<3.",
       tag: "Network",
     },
   ];
@@ -537,7 +541,7 @@ function WhyChooseUs() {
     <section className="bg-white py-20 px-6 md:px-20">
       <div className="max-w-[1280px] mx-auto">
         <h2 className="text-[clamp(1.75rem,4vw,3.5rem)] leading-[1.05] tracking-[-0.015em] max-w-[18ch] mb-12 text-balance">
-          Why Leading Founders Choose To Partner With Us.
+          Why Leading Founders Choose To Open Positions.
         </h2>
 
         <div className="border-t border-[#E8E6E1]">
@@ -571,20 +575,20 @@ function WhyChooseUs() {
 function FAQSection() {
   const faqs = [
     {
-      q: "What stage of companies do you typically invest in?",
-      a: "We primarily focus on Seed and Series A stages, supporting ambitious founders from early product validation through rapid market scaling and international expansion.",
+      q: "Is this trading real money?",
+      a: "No. Alpaca paper trading only. Keys are ALPACA_PAPER_TRADE=true; live execution is isolated and auditable via MCP.",
     },
     {
-      q: "What is your typical initial investment check size?",
-      a: "Our initial investments typically range from $500K to $5M, depending on the stage, market opportunity, and the founding team's vision.",
+      q: "How does the signal step work?",
+      a: "TradingAgents runs a LangGraph multi-agent debate via Cloudflare Workers AI and collapses Buy/Overweight/Hold/Underweight/Sell to BUY/SELL/HOLD.",
     },
     {
-      q: "How do you support portfolio companies beyond capital?",
-      a: "We provide hands-on support across strategy, hiring, go-to-market, and operational infrastructure through our dedicated portfolio team.",
+      q: "What actually blocks a bad trade?",
+      a: "Twelve deterministic risk gates — defined-risk, 8% per-trade/35% aggregate, OI>100, spread<15% mid, DTE 5–30, BP, daily -3%/5d -6% breakers — veto before execution.",
     },
     {
-      q: "What key criteria do you look for in founding teams?",
-      a: "We look for resilience, deep domain expertise, clear vision, and the ability to execute rapidly in dynamic market conditions.",
+      q: "How do positions close?",
+      a: "Position manager auto-closes at +100% take-profit, −50% stop-loss, or DTE<3, and every cycle snapshots equity/cash/BP for the dashboard.",
     },
   ];
 
@@ -638,22 +642,18 @@ function Footer() {
         {[
           {
             num: "01",
-            left: ["Approach", "Portfolio", "Leadership", "Contact"],
-            right: ["Healthcare", "Enterprise AI", "Fintech", "Climate Tech®"],
+            left: ["Pipeline", "How It Works", "Risk Gates", "Dashboard"],
+            right: ["Signal", "Structure", "Execute", "Manage"],
           },
-          {
-            num: "02",
-            left: ["Digitalization", "Sustainability", "Governance", "FAQs"],
-            right: [],
-          },
-          { num: "03", left: ["LinkedIn", "Twitter / X"], right: [], lang: true },
+          { num: "02", left: ["Live Chain", "MCP", "Paper Trading", "Workers AI"], right: [] },
+          { num: "03", left: ["GitHub", "Risk Gates Docs"], right: [], lang: true },
         ].map((col) => (
           <div
             key={col.num}
             className="relative px-6 py-6 border-b md:border-b-0 md:border-r border-[#1F1590] last:border-r-0"
           >
             <div className="flex items-center justify-between mb-6">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest">{`BLCK. ${col.num}`}</span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest">{`ALPC. ${col.num}`}</span>
               <div className="w-1.5 h-1.5 bg-white" />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -695,7 +695,7 @@ function Footer() {
 
       <div className="flex items-center justify-center py-12 md:py-16 relative px-6 overflow-hidden">
         <span className="text-[clamp(3.5rem,11vw,9rem)] leading-[0.9] tracking-[-0.02em] uppercase text-center text-balance">
-          BLUEPEAK<span className="text-[0.6em]">.</span>
+          ALPACA<span className="text-[0.6em]">.</span>
         </span>
         <span className="hidden md:flex absolute right-[6%] top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border border-white/60 items-center justify-center text-xs font-mono">
           R
@@ -703,10 +703,10 @@ function Footer() {
       </div>
 
       <div className="border-t border-[#1F1590] px-6 md:px-20 py-3 flex flex-col md:flex-row items-center justify-between text-[10px] font-mono text-white/60 gap-2">
-        <span>©2026 BLUEPEAK</span>
-        <span>TERMS AND CONDITIONS</span>
-        <span>PRIVACY POLICY</span>
-        <span>WEBSITE BY BNL/S &amp; WKHS®</span>
+        <span>©2026 ALPACA AGENT</span>
+        <span>PAPER TRADING ONLY</span>
+        <span>RISK DISCLOSURE</span>
+        <span>BUILT ON ALPACA MCP & CF WORKERS AI</span>
       </div>
     </footer>
   );
@@ -721,7 +721,7 @@ export default function LandingPage() {
       <Hero />
       <About />
       <CoreInvestment />
-      <LeadershipBoard />
+      <RiskGates />
       <Portfolio />
       <WhyChooseUs />
       <FAQSection />

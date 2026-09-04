@@ -17,7 +17,7 @@ import {
   ChevronsRight,
   CreditCard,
   Search,
-  UsersRound,
+  ShieldCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -49,46 +49,46 @@ import {
 import { dataTableFeatures } from "@/lib/data-table-features";
 
 import { recentCustomersColumns } from "./columns";
-import type { RecentCustomerRow } from "./schema";
+import type { RecentTradeRow } from "./schema";
 
 const statusOptions = [
   { value: "all", label: "All" },
-  { value: "Subscribed", label: "Subscribed" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Unsubscribed", label: "Unsubscribed" },
+  { value: "open", label: "Open" },
+  { value: "closed", label: "Closed" },
+  { value: "rejected", label: "Rejected" },
+  { value: "failed", label: "Failed" },
 ] as const;
-const billingOptions = [
+const sideOptions = [
   { value: "all", label: "All" },
-  { value: "Paid", label: "Paid" },
-  { value: "Pending", label: "Pending" },
-  { value: "Overdue", label: "Overdue" },
-  { value: "Trial", label: "Trial" },
+  { value: "credit", label: "Credit" },
+  { value: "debit", label: "Debit" },
 ] as const;
-const joinedDateOptions = [
+const expiryOptions = [
   { value: "all", label: "All time" },
-  { value: "30", label: "Last 30 days" },
-  { value: "90", label: "Last 90 days" },
+  { value: "expiring", label: "Expiring ≤3d" },
+  { value: "7", label: "≤7 days" },
+  { value: "30", label: "≤30 days" },
 ] as const;
 const sortOptions = [
-  { value: "newest", label: "Newest first" },
-  { value: "oldest", label: "Oldest first" },
-  { value: "name-asc", label: "Name A-Z" },
-  { value: "name-desc", label: "Name Z-A" },
+  { value: "newest", label: "Expiry soonest" },
+  { value: "oldest", label: "Expiry latest" },
+  { value: "ticker-asc", label: "Ticker A-Z" },
+  { value: "ticker-desc", label: "Ticker Z-A" },
 ] as const;
 const sortOptionState = {
-  newest: [{ id: "joined", desc: true }],
-  oldest: [{ id: "joined", desc: false }],
-  "name-asc": [{ id: "name", desc: false }],
-  "name-desc": [{ id: "name", desc: true }],
+  newest: [{ id: "expiry", desc: false }],
+  oldest: [{ id: "expiry", desc: true }],
+  "ticker-asc": [{ id: "ticker", desc: false }],
+  "ticker-desc": [{ id: "ticker", desc: true }],
 } satisfies Record<(typeof sortOptions)[number]["value"], SortingState>;
 
-export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
+export function RecentCustomersTable({ data }: { data: RecentTradeRow[] }) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: "joined", desc: true }]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "expiry", desc: false }]);
   const [columnVisibility] = React.useState<ColumnVisibilityState>({
     search: false,
-    joinedWindow: false,
+    expiryWindow: false,
   });
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
@@ -116,19 +116,17 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
 
   const searchQuery = (table.getColumn("search")?.getFilterValue() as string | undefined) ?? "";
   const statusFilter = (table.getColumn("status")?.getFilterValue() as string | undefined) ?? "all";
-  const billingFilter =
-    (table.getColumn("billing")?.getFilterValue() as string | undefined) ?? "all";
-  const joinedDateFilter =
-    (table.getColumn("joinedWindow")?.getFilterValue() as string | undefined) ?? "all";
+  const sideFilter =
+    (table.getColumn("creditDebit")?.getFilterValue() as string | undefined) ?? "all";
+  const expiryFilter =
+    (table.getColumn("expiryWindow")?.getFilterValue() as string | undefined) ?? "all";
   const sortValue = React.useMemo(() => {
     const currentSort = sorting[0];
-
     if (!currentSort) return "newest";
-    if (currentSort.id === "joined" && currentSort.desc) return "newest";
-    if (currentSort.id === "joined" && !currentSort.desc) return "oldest";
-    if (currentSort.id === "name" && !currentSort.desc) return "name-asc";
-    if (currentSort.id === "name" && currentSort.desc) return "name-desc";
-
+    if (currentSort.id === "expiry" && !currentSort.desc) return "newest";
+    if (currentSort.id === "expiry" && currentSort.desc) return "oldest";
+    if (currentSort.id === "ticker" && !currentSort.desc) return "ticker-asc";
+    if (currentSort.id === "ticker" && currentSort.desc) return "ticker-desc";
     return "newest";
   }, [sorting]);
 
@@ -140,7 +138,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="h-7 rounded-[min(var(--radius-md),12px)] pl-8"
-              placeholder="Search customers..."
+              placeholder="Search trades..."
               value={searchQuery}
               onChange={(event) => {
                 table.getColumn("search")?.setFilterValue(event.target.value || undefined);
@@ -151,7 +149,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <UsersRound />
+                <ShieldCheck />
                 Status
               </Button>
             </DropdownMenuTrigger>
@@ -175,20 +173,20 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <CalendarDays />
-                Joined date
+                Expiry
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-40" align="start">
               <DropdownMenuRadioGroup
-                value={joinedDateFilter}
+                value={expiryFilter}
                 onValueChange={(value) => {
                   table
-                    .getColumn("joinedWindow")
+                    .getColumn("expiryWindow")
                     ?.setFilterValue(value === "all" ? undefined : value);
                   table.setPageIndex(0);
                 }}
               >
-                {joinedDateOptions.map((option) => (
+                {expiryOptions.map((option) => (
                   <DropdownMenuRadioItem key={option.value} value={option.value}>
                     {option.label}
                   </DropdownMenuRadioItem>
@@ -202,20 +200,22 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <CreditCard />
-                Billing
+                Side
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuRadioGroup
-                value={billingFilter}
+                value={sideFilter}
                 onValueChange={(value) => {
-                  table.getColumn("billing")?.setFilterValue(value === "all" ? undefined : value);
+                  table
+                    .getColumn("creditDebit")
+                    ?.setFilterValue(value === "all" ? undefined : value);
                   table.setPageIndex(0);
                 }}
               >
-                {billingOptions.map((billing) => (
-                  <DropdownMenuRadioItem key={billing.value} value={billing.value}>
-                    {billing.label}
+                {sideOptions.map((side) => (
+                  <DropdownMenuRadioItem key={side.value} value={side.value}>
+                    {side.label}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
@@ -284,7 +284,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
                   colSpan={table.getVisibleLeafColumns().length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No trades yet.
                 </TableCell>
               </TableRow>
             )}
@@ -299,7 +299,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
         </div>
         <div className="flex w-full items-center gap-8 lg:w-fit">
           <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="recent-customers-rows-per-page" className="font-medium text-sm">
+            <Label htmlFor="recent-trades-rows-per-page" className="font-medium text-sm">
               Rows per page
             </Label>
             <Select
@@ -308,7 +308,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
                 table.setPageSize(Number(value));
               }}
             >
-              <SelectTrigger size="sm" className="w-20" id="recent-customers-rows-per-page">
+              <SelectTrigger size="sm" className="w-20" id="recent-trades-rows-per-page">
                 <SelectValue placeholder={table.state.pagination.pageSize} />
               </SelectTrigger>
               <SelectContent side="top">

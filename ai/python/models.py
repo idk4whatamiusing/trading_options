@@ -31,7 +31,7 @@ class Leg:
 class TradeProposal:
     ticker: str
     strategy: (
-        str  # bull_put_spread | bear_call_spread | iron_condor | bull_call_spread | bear_put_spread
+        str  # bull_put_spread | bear_call_spread | iron_condor | bull_call_spread | bear_put_spread | long_call | long_put | long_straddle | long_strangle
     )
     legs: list[Leg]
     expiry: str
