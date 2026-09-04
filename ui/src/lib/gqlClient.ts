@@ -93,8 +93,24 @@ export const TRADES = `query ($status: String) {
   }
 }`;
 
+export const OPEN_TRADES = `query {
+  trades(status: "open", limit: 50) {
+    id ticker strategy expiry quantity creditDebit netPremium maxProfit maxLoss
+    status alpacaOrderId realizedPnl rationale createdAt openedAt
+    legs { side right strike expiry symbol ratioQty }
+  }
+}`;
+
+export const ALL_TRADES = `query ($status: String, $limit: Int) {
+  trades(status: $status, limit: $limit) {
+    id ticker strategy expiry quantity creditDebit netPremium maxProfit maxLoss
+    status alpacaOrderId realizedPnl rationale createdAt openedAt closedAt
+    legs { side right strike expiry symbol ratioQty }
+  }
+}`;
+
 export const DECISIONS = `{
-  decisions(limit: 50) { id ticker runDate direction confidence summary createdAt }
+  decisions(limit: 50) { id ticker runDate direction confidence summary fullReport createdAt }
 }`;
 
 export const RISK_GATE_EVENTS = `{
@@ -103,6 +119,18 @@ export const RISK_GATE_EVENTS = `{
 
 export const ACCOUNT_SNAPSHOTS = `query ($limit: Int) {
   accountSnapshots(limit: $limit) { id equity cash buyingPower optionsBuyingPower dayPnl openPositionsCount createdAt }
+}`;
+
+export const RUN_CYCLE = `mutation ($tickers: [String!]) {
+  runCycle(tickers: $tickers)
+}`;
+
+export const EVENTS = `subscription {
+  events
+}`;
+
+export const BROADCAST = `mutation ($message: String!) {
+  broadcast(message: $message)
 }`;
 
 export interface Leg {
@@ -129,6 +157,8 @@ export interface Trade {
   realizedPnl?: number | null;
   rationale?: string | null;
   createdAt: string;
+  openedAt?: string | null;
+  closedAt?: string | null;
   legs: Leg[];
 }
 
@@ -139,6 +169,7 @@ export interface Decision {
   direction: string;
   confidence: number;
   summary: string;
+  fullReport?: string | null;
   createdAt: string;
 }
 
