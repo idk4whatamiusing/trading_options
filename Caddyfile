@@ -1,14 +1,9 @@
 {$DOMAIN} {
 	encode gzip
-	reverse_proxy gateway:8787
+	reverse_proxy ui:3000
 }
 
 api.{$DOMAIN} {
 	encode gzip
 	reverse_proxy api:8000
-}
-
-gateway.{$DOMAIN} {
-	encode gzip
-	reverse_proxy gateway:8787
 }

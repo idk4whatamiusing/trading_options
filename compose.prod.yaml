@@ -21,31 +21,11 @@ services:
       ai:
         condition: service_started
 
-  gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8787:8787"
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "require('http').get('http://127.0.0.1:8787',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
-
-  # Cloudflare Workers gateway — serves the Next.js static export (ui/out)
-  # and handles the fallback for unmatched routes.
+  # serves the Next.js static export directly (ui/out). The Cloudflare
+  # Workers deployment (workers/ui, wrangler deploy) is the real public
+  # gateway; this container just lets Caddy front the same build on the
+  # EC2 domain too. gateway/ (wrangler dev inside Docker) was an earlier,
+  # now-dead design for this and has been removed.
   ui:
     build:
       context: .
