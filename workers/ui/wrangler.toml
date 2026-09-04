@@ -2,7 +2,12 @@ name = "alpaca-ui"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
 
-# Serves Next.js static export (landing + dashboard) as pure static assets.
-# No auth, no API proxy — UI talks cross-origin to https://api.<DOMAIN>
-# via NEXT_PUBLIC_API_URL baked at build time.
-assets = { directory = "../../ui/out", not_found_handling = "single-page-application" }
+# Serves the Next.js static export (landing + dashboard) as static assets,
+# with the Hono Worker in src/index.ts handling /api/* (Google OAuth +
+# reverse proxy to the AWS API). run_worker_first is required for that: by
+# default Cloudflare's asset/SPA-fallback layer intercepts any browser
+# navigation-shaped request that doesn't match a literal file - including
+# /api/auth/* paths - and serves cached index.html WITHOUT ever invoking
+# the Worker. Scoping it to /api/* keeps normal asset/SPA serving fast for
+# everything else.
+assets = { directory = "../../ui/out", not_found_handling = "single-page-application", run_worker_first = ["/api/*"] }
