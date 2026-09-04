@@ -152,7 +152,8 @@ jobs:
 
       - name: Install gateway deps
         if: steps.cf-check.outputs.deploy == 'true'
-        run: cd gateway && npm ci --legacy-peer-deps
+        run: cd gateway && npm ci --ignore-scripts || npm install --legacy-peer-deps
+        timeout-minutes: 5
 
       - name: Deploy gateway Worker
         if: steps.cf-check.outputs.deploy == 'true'
@@ -165,7 +166,8 @@ jobs:
 
       - name: Install new UI worker deps
         if: steps.cf-check.outputs.deploy == 'true'
-        run: cd workers/ui && npm ci
+        run: cd workers/ui && npm ci --ignore-scripts || npm install
+        timeout-minutes: 5
 
       - name: Deploy new UI Worker
         if: steps.cf-check.outputs.deploy == 'true'
