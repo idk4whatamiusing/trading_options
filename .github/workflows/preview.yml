@@ -53,7 +53,7 @@ jobs:
 
       - name: Deploy preview gateway
         if: steps.preview.outputs.gateway == 'true'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: gateway
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Delete preview gateway
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: gateway
