@@ -13,10 +13,20 @@ Spawns `uvx alpaca-mcp-server` as a stdio subprocess and exposes:
 Toolset filtering on the server itself (ALPACA_TOOLSETS) additionally scopes
 what the subprocess exposes at all; the whitelist here is the second,
 independent boundary enforced in our own process.
+
+Every await that talks to the subprocess is timeout-bounded (see config's
+MCP_CONNECT_TIMEOUT_S/MCP_CALL_TIMEOUT_S). Observed live: the subprocess can
+die silently mid-cycle - no crash logged, no OOM, just gone from `docker top`
+- and without a timeout that leaves the calling code awaiting a response
+that will never arrive, indefinitely, with nothing in the logs to explain
+why. A single call_tool() timeout triggers one reconnect+retry so a dead
+subprocess is recoverable mid-cycle rather than failing every remaining
+ticker identically for the rest of the run.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from contextlib import AsyncExitStack
 from typing import Any
@@ -53,11 +63,25 @@ class AlpacaMcpClient:
                 "ALPACA_TOOLSETS": config.ALPACA_TOOLSETS,
             },
         )
-        self._stack = AsyncExitStack()
-        read_stream, write_stream = await self._stack.enter_async_context(stdio_client(params))
-        self.session = await self._stack.enter_async_context(
-            ClientSession(read_stream, write_stream)
-        )
+        stack = AsyncExitStack()
+        try:
+            await asyncio.wait_for(
+                self._do_connect(stack, params), timeout=config.MCP_CONNECT_TIMEOUT_S
+            )
+        except TimeoutError:
+            await stack.aclose()
+            raise TimeoutError(
+                f"MCP connect timed out after {config.MCP_CONNECT_TIMEOUT_S}s - "
+                "the alpaca-mcp-server subprocess may have failed to start"
+            ) from None
+        except Exception:
+            await stack.aclose()
+            raise
+        self._stack = stack
+
+    async def _do_connect(self, stack: AsyncExitStack, params: StdioServerParameters) -> None:
+        read_stream, write_stream = await stack.enter_async_context(stdio_client(params))
+        self.session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
         await self.session.initialize()
         result = await self.session.list_tools()
         self._tools = result.tools
@@ -92,7 +116,26 @@ class AlpacaMcpClient:
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> Any:
         assert self.session is not None, "call connect() first"
-        result = await self.session.call_tool(name, args)
+        try:
+            return await self._call_tool_once(name, args)
+        except TimeoutError:
+            # One reconnect+retry: a dead subprocess otherwise poisons every
+            # remaining call for the rest of the cycle in the exact same way.
+            await self.close()
+            await self.connect()
+            return await self._call_tool_once(name, args)
+
+    async def _call_tool_once(self, name: str, args: dict[str, Any]) -> Any:
+        assert self.session is not None
+        try:
+            result = await asyncio.wait_for(
+                self.session.call_tool(name, args), timeout=config.MCP_CALL_TIMEOUT_S
+            )
+        except TimeoutError:
+            raise TimeoutError(
+                f"MCP tool '{name}' timed out after {config.MCP_CALL_TIMEOUT_S}s - "
+                "the alpaca-mcp-server subprocess may have died"
+            ) from None
 
         texts = [block.text for block in result.content if getattr(block, "type", None) == "text"]
         raw = "\n".join(texts)
