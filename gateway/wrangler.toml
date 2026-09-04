@@ -9,4 +9,4 @@ compatibility_date = "2026-06-01"
 # is what the GraphQL subscription needs, so there's nothing for this
 # worker to proxy; it only serves static files, and its script below is a
 # fallback for unmatched routes.
-assets = { directory = "../ui/out" }
+assets = { directory = "./ui/out" }

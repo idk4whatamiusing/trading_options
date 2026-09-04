@@ -71,10 +71,11 @@ jobs:
             echo "$CHANGED" | grep -qE '^db/|^packages/proto/' && REBUILD+=("db")
             echo "$CHANGED" | grep -qE '^ai/|^api/' && REBUILD+=("ai")
             echo "$CHANGED" | grep -qE '^realtime/' && REBUILD+=("realtime")
+            echo "$CHANGED" | grep -qE '^gateway/' && REBUILD+=("gateway")
 
             # Full rebuild if infra/compose/Dockerfiles changed
             echo "$CHANGED" | grep -qE '^compose\.(prod\.)?yaml|Dockerfile|\.dockerignore' && \
-              REBUILD=("ui" "api" "db" "ai" "realtime")
+              REBUILD=("ui" "api" "db" "ai" "realtime" "gateway")
 
             if [ ${#REBUILD[@]} -eq 0 ]; then
               echo "No service changes detected. Skipping build."
@@ -95,6 +96,8 @@ jobs:
 
             # Ensure caddy is running (reverse proxy to all services)
             docker compose -f compose.prod.yaml up -d caddy
+            # Ensure gateway is running (Cloudflare Workers static export)
+            docker compose -f compose.prod.yaml up -d gateway 2>/dev/null || true
 
             # Log deployment
             echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) DEPLOY $NEW_HEAD services=${REBUILD[*]}" >> .deploy-log

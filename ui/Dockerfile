@@ -7,7 +7,7 @@ COPY package.json bun.lock* ./
 COPY . .
 RUN bun install --frozen-lockfile
 RUN bun --cwd ui build
-# runtime
+# runtime (standalone SSR for AWS/dev)
 FROM oven/bun:1-alpine
 WORKDIR /app
 COPY --from=build /app/ui/.next/standalone ./

@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+*.tgz
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+*.md
+!README.md
+.git
+.gitignore
+node_modules
