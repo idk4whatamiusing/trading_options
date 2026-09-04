@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { PREFERENCE_DEFAULTS } from "@/lib/preferences/preferences-config";
 import { PreferencesStoreProvider } from "@/stores/preferences/preferences-provider";
 import { ThemeBootScript } from "@/scripts/theme-boot";
+import { GoogleSessionProvider } from "@/hooks/use-google-session";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -41,7 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`${GeistSans.variable} ${GeistMono.variable} min-h-screen bg-background text-foreground font-sans antialiased`}
       >
         <PreferencesStoreProvider initialValues={PREFERENCE_DEFAULTS}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <GoogleSessionProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </GoogleSessionProvider>
         </PreferencesStoreProvider>
       </body>
     </html>
