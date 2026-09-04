@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { AppSidebar } from "@/app/dashboard/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { users } from "@/data/users";
 import { cn } from "@/lib/utils";
 import { PREFERENCE_DEFAULTS } from "@/lib/preferences/preferences-config";
 
@@ -60,7 +59,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
               <LayoutControls />
               <ThemeSwitcher />
               <GitHubRepositoriesMenu />
-              <AccountSwitcher users={users} />
+              <AccountSwitcher />
             </div>
           </div>
         </header>
