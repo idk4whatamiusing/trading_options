@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
 
-import { cookies } from "next/headers";
-
 import { AppSidebar } from "@/app/dashboard/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { users } from "@/data/users";
 import { cn } from "@/lib/utils";
-import { getPreference } from "@/server/server-actions";
+import { PREFERENCE_DEFAULTS } from "@/lib/preferences/preferences-config";
 
 import { AccountSwitcher } from "./_components/header/account-switcher";
 import { GitHubRepositoriesMenu } from "./_components/header/github-repositories-menu";
@@ -15,13 +13,12 @@ import { LayoutControls } from "./_components/header/layout-controls";
 import { SearchDialog } from "./_components/header/search-dialog";
 import { ThemeSwitcher } from "./_components/header/theme-switcher";
 
+// Static export (Cloudflare) cannot use cookies()/headers().
+// Use defaults at build time; client PreferencesStore hydrates from cookies at runtime.
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
-  const cookieStore = await cookies();
-  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const [variant, collapsible] = await Promise.all([
-    getPreference("sidebar_variant"),
-    getPreference("sidebar_collapsible"),
-  ]);
+  const defaultOpen = true;
+  const variant = PREFERENCE_DEFAULTS.sidebar_variant;
+  const collapsible = PREFERENCE_DEFAULTS.sidebar_collapsible;
 
   return (
     <SidebarProvider

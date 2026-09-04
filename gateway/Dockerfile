@@ -5,10 +5,11 @@ COPY . .
 RUN bun install --frozen-lockfile
 RUN BUILD_TARGET=export bun --cwd ui build
 FROM oven/bun:1-alpine AS runtime
-WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/ui/out ./ui/out
+WORKDIR /app/gateway
+COPY --from=build /app/node_modules ../node_modules
+COPY --from=build /app/ui/out ../ui/out
 COPY gateway/wrangler.toml ./wrangler.toml
 COPY gateway/src ./src
+COPY gateway/package.json ./package.json
 EXPOSE 8787
-CMD ["node", "node_modules/.bin/wrangler", "dev", "--local", "--port", "8787"]
+CMD ["node", "../node_modules/.bin/wrangler", "dev", "--local", "--port", "8787", "--host", "0.0.0.0"]

@@ -1,7 +1,3 @@
-"use server";
-
-import { cookies } from "next/headers";
-
 import {
   getPreferencePersistence,
   PREFERENCE_REGISTRY,
@@ -10,9 +6,21 @@ import {
   parsePreference,
 } from "@/lib/preferences/preferences-config";
 
+// Static export (BUILD_TARGET=export) cannot use next/headers cookies().
+// These helpers fall back to defaults when cookies() is unavailable.
+async function getCookieStore() {
+  if (process.env.BUILD_TARGET === "export") return null;
+  try {
+    const { cookies } = await import("next/headers");
+    return await cookies();
+  } catch {
+    return null;
+  }
+}
+
 export async function getValueFromCookie(key: string): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get(key)?.value;
+  const cookieStore = await getCookieStore();
+  return cookieStore?.get(key)?.value;
 }
 
 export async function setValueToCookie(
@@ -20,7 +28,8 @@ export async function setValueToCookie(
   value: string,
   options: { path?: string; maxAge?: number } = {},
 ): Promise<void> {
-  const cookieStore = await cookies();
+  const cookieStore = await getCookieStore();
+  if (!cookieStore) return;
   cookieStore.set(key, value, {
     path: options.path ?? "/",
     maxAge: options.maxAge ?? 60 * 60 * 24 * 7, // default: 7 days
@@ -37,6 +46,7 @@ export async function getPreference<K extends PreferenceKey>(
     return definition.defaultValue as PreferenceValueMap[K];
   }
 
-  const cookieStore = await cookies();
-  return parsePreference(key, cookieStore.get(key)?.value.trim());
+  const cookieStore = await getCookieStore();
+  if (!cookieStore) return definition.defaultValue as PreferenceValueMap[K];
+  return parsePreference(key, cookieStore.get(key)?.value?.trim());
 }

@@ -1,4 +1,6 @@
-"use client";
+export function generateStaticParams() {
+  return [{ "not-found": ["placeholder"] }];
+}
 
 export default function DashboardNotFound() {
   return (
