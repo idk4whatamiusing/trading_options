@@ -11,7 +11,7 @@ terraform {
 }
 
 variable "region" {
-  default = "us-east-1"
+  default = "ap-south-2"
 }
 
 variable "instance_type" {
@@ -48,12 +48,12 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_key_pair" "app" {
-  key_name   = "meridian"
+  key_name   = "alpaca"
   public_key = file(pathexpand(var.ssh_public_key_path))
 }
 
 resource "aws_security_group" "app" {
-  name        = "meridian-app"
+  name        = "alpaca-app"
   description = "web (80/443) + ssh (22)"
 
   ingress {
@@ -99,7 +99,7 @@ resource "aws_instance" "app" {
     systemctl enable --now docker
     usermod -aG docker ubuntu
   EOF
-  tags = { Name = "meridian-app" }
+  tags = { Name = "alpaca-app" }
 }
 
 resource "aws_eip" "app" {
