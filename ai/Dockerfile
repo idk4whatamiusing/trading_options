@@ -20,8 +20,14 @@ COPY --from=gobuild /out/ai /usr/local/bin/ai
 COPY ai/python/requirements.txt python/
 RUN pip install --no-cache-dir -r python/requirements.txt
 COPY ai/python/*.py python/
-COPY ai/python/pb/ python/pb/
 COPY ai/python/scripts/ python/scripts/
+# db_pb2/db_pb2_grpc are generated, not committed (gitignored) - regenerate
+# them in the image itself so the build never depends on a local checkout
+# having already run this (same command CI runs before its own pytest step).
+COPY packages/proto/ packages/proto/
+RUN mkdir -p python/pb && \
+    python -m grpc_tools.protoc -I packages/proto \
+      --python_out=python/pb --grpc_python_out=python/pb packages/proto/db.proto
 
 # start.sh: the Python trading brain (:8003) first, then the Go gRPC server (:8002)
 RUN printf '#!/bin/sh\nset -e\nuvicorn main:app --app-dir python --host 127.0.0.1 --port 8003 &\nexec ai\n' > start.sh && chmod +x start.sh
