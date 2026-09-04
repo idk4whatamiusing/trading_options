@@ -9,12 +9,40 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useGoogleSession } from "@/hooks/use-google-session";
 
 const anton = Anton({
   subsets: ["latin"],
   weight: "400",
   variable: "--font-anton",
 });
+
+// Signed in -> the real dashboard link. Signed out -> start the Google
+// OAuth flow instead of linking straight to /dashboard, which is now
+// auth-gated and would just bounce back here.
+function DashboardCta({
+  className,
+  children,
+}: {
+  readonly className?: string;
+  readonly children: React.ReactNode;
+}) {
+  const { user } = useGoogleSession();
+
+  if (user) {
+    return (
+      <Link href="/dashboard" className={className}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <a href="/api/auth/google/start" className={className}>
+      Sign In
+    </a>
+  );
+}
 
 /* ─── Section 1: Hero ─── */
 function Hero() {
@@ -32,12 +60,9 @@ function Hero() {
             <span className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
               Risk Gates
             </span>
-            <Link
-              href="/dashboard"
-              className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition"
-            >
+            <DashboardCta className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
               Dashboard
-            </Link>
+            </DashboardCta>
             <span className="px-4 py-1.5 text-white/70 hover:text-white cursor-pointer transition">
               FAQ
             </span>
@@ -56,12 +81,9 @@ function Hero() {
             ))}
           </div>
           <div className="flex items-center px-4 border-l border-white/10">
-            <Link
-              href="/dashboard"
-              className="bg-white text-[#232323] px-6 py-2 text-xs font-mono cursor-pointer"
-            >
+            <DashboardCta className="bg-white text-[#232323] px-6 py-2 text-xs font-mono cursor-pointer">
               Paper Trading
-            </Link>
+            </DashboardCta>
           </div>
         </div>
       </div>
@@ -129,12 +151,9 @@ function Hero() {
             ))}
           </div>
           <div className="bg-[#232323] px-5 pb-5">
-            <Link
-              href="/dashboard"
-              className="block w-full text-center bg-[#2A2A2A] text-white text-xs font-mono py-3 cursor-pointer hover:bg-[#333] transition"
-            >
+            <DashboardCta className="block w-full text-center bg-[#2A2A2A] text-white text-xs font-mono py-3 cursor-pointer hover:bg-[#333] transition">
               Open Dashboard ↗
-            </Link>
+            </DashboardCta>
           </div>
         </div>
       </div>
