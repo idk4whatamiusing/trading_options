@@ -46,10 +46,15 @@ jobs:
               echo "CF_API_TOKEN=${{ secrets.CF_API_TOKEN }}" >> .env
             fi
 
-            # Setup swap if missing
+            # Ensure 2G swap exists, is active, and survives a reboot (a plain
+            # mkswap/swapon here doesn't persist - a reboot silently drops it,
+            # and this box is memory-tight enough that a concurrent 5-service
+            # docker compose build without swap can thrash it unresponsive).
             if [ ! -f /swapfile ]; then
-              sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+              sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile
             fi
+            sudo swapon /swapfile 2>/dev/null || true
+            grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
             # Prune old Docker build cache (older than 7 days)
             docker builder prune --filter until=168h --force 2>/dev/null || true
