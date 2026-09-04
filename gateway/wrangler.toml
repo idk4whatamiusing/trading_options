@@ -1,7 +1,6 @@
 name = "gateway"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
-account_id = "dsjzcjmsh6"
 
 # Static assets = the Next.js static export. No auth, no /api/* proxy: the
 # UI talks directly (cross-origin) to the AWS-hosted api service via
